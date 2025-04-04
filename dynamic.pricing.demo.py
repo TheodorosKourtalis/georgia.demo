@@ -1,4 +1,3 @@
-
 import streamlit as st
 import datetime
 import random
@@ -6,14 +5,12 @@ import pandas as pd
 import pytz
 import time
 
-# Update interval in seconds (common to both pages)
+# Common update interval in seconds.
 UPDATE_INTERVAL = 5
 
 # --- Global Product Data (cached for performance) ---
 @st.cache_resource
 def get_products():
-    # Two products with fixed starting prices and randomly generated ending prices
-    # within 30%-70% of the starting price.
     products = [
         {
             "name": "Product A",
@@ -33,8 +30,9 @@ products = get_products()
 def get_cycle(current_dt):
     """
     Determines the active price degradation cycle based on Greek time.
+    
     - If current time is before 5:00 AM, the cycle is from yesterday 7:00 AM to today 5:00 AM.
-    - If current time is between 5:00 and 7:00 AM, the previous cycle is considered completed.
+    - If current time is between 5:00 and 7:00 AM, the previous cycle is considered complete.
     - Otherwise, the cycle is from today 7:00 AM to tomorrow 5:00 AM.
     """
     tz = pytz.timezone("Europe/Athens")
@@ -61,7 +59,7 @@ def calculate_price(product, current_dt):
     
     $$ f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}} $$
     
-    For times between 5:00 and 7:00 AM the final (degraded) price is returned.
+    For times between 5:00 and 7:00 AM, the final (degraded) price is returned.
     """
     tz = pytz.timezone("Europe/Athens")
     current_dt = current_dt.astimezone(tz)
@@ -88,7 +86,7 @@ tz = pytz.timezone("Europe/Athens")
 if page == "Demo":
     st.title("Product Demo Page")
     demo_placeholder = st.empty()
-    
+
     while True:
         loop_start = time.perf_counter()
         now = datetime.datetime.now(tz)
@@ -105,6 +103,7 @@ elif page == "Console":
     st.title("Console: Detailed Analytics & Full Price History")
     analytics_placeholder = st.empty()
     table_placeholder = st.empty()
+    download_placeholder = st.empty()
     
     while True:
         loop_start = time.perf_counter()
@@ -113,13 +112,13 @@ elif page == "Console":
         total_duration = (cycle_end - cycle_start).total_seconds()
         elapsed_time = (now - cycle_start).total_seconds()
         
-        # Display the linear interpolation function as LaTeX
+        # Display the linear degradation function as LaTeX.
         analytics_placeholder.latex(
             r"f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}}"
         )
-        
         analytics_details = f"""
 **Cycle Details:**
+
 - **Cycle Start (tₛ):** {cycle_start.strftime("%H:%M:%S")}
 - **Cycle End (tₑ):** {cycle_end.strftime("%H:%M:%S")}
 - **Current Time (t):** {now.strftime("%H:%M:%S")}
@@ -128,7 +127,7 @@ elif page == "Console":
         """
         st.markdown(analytics_details)
         
-        # Build full price history from cycle_start to now at 5-second intervals.
+        # Build full price history from cycle_start to now at UPDATE_INTERVAL intervals.
         schedule = []
         current_dt = cycle_start
         while current_dt <= now:
@@ -141,7 +140,6 @@ elif page == "Console":
         
         df = pd.DataFrame(schedule)
         
-        # Show two separate tables: first 100 entries and last 100 entries (if available)
         if not df.empty:
             if len(df) > 100:
                 st.markdown("### First 100 Entries")
@@ -151,13 +149,14 @@ elif page == "Console":
             else:
                 st.dataframe(df, use_container_width=True)
         
-        # Provide a download button for the full table (CSV) without displaying it
+        # Update CSV in session state and show a download button using a unique key.
         csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button(
+        download_placeholder.download_button(
             label="Download Full Price History",
             data=csv,
             file_name="price_history.csv",
-            mime="text/csv"
+            mime="text/csv",
+            key=f"download_button_{int(time.time())}"
         )
         
         elapsed_loop = time.perf_counter() - loop_start
