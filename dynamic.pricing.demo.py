@@ -118,26 +118,42 @@ page = st.sidebar.selectbox("Select Page", options=["Demo", "Console"])
 tz = pytz.timezone("Europe/Athens")
 
 if page == "Demo":
-    st.title("Eco Happy Product Demo")
-    demo_placeholder = st.empty()
+    st.title("Welcome to Eco Store")
+    
+    # Use an empty placeholder that will be updated every UPDATE_INTERVAL seconds
+    store_placeholder = st.empty()
     
     while True:
         now = datetime.datetime.now(tz)
         scheduled_time = get_global_scheduled_time()
-        demo_text = (
-            f"**Current Greek Time:** {now.strftime('%H:%M:%S')}  \n"
-            f"**Scheduled Calculation Time:** {scheduled_time.strftime('%H:%M:%S')}\n\n"
-            "Prices degrade linearly from **05:00** (cycle start) over 22 hours.\n\n"
-        )
-        for product in products:
-            price = calculate_price(product, scheduled_time)
-            demo_text += (
-                f"**{product['name']}**: {price:.8f} €  \n"
-                f"*Calculated at {scheduled_time.strftime('%H:%M:%S')}*\n\n"
-            )
-        demo_placeholder.markdown(demo_text)
+        
+        with store_placeholder.container():
+            st.write(f"**Current Greek Time:** {now.strftime('%H:%M:%S')}")
+            st.write(f"**Sale Price Calculation Time:** {scheduled_time.strftime('%H:%M:%S')}")
+            st.markdown("---")
+            
+            # Create a column for each product (e.g. 2 products side by side)
+            cols = st.columns(len(products))
+            for i, product in enumerate(products):
+                with cols[i]:
+                    # Display a placeholder image for the product
+                    image_url = f"https://via.placeholder.com/200?text={product['name']}"
+                    st.image(image_url, use_column_width=True)
+                    
+                    # Display the product name and sale price
+                    st.header(product["name"])
+                    price = calculate_price(product, scheduled_time)
+                    st.subheader(f"Sale Price: €{price:.8f}")
+                    
+                    # Add a short product description
+                    st.write("Experience top-quality design and unbeatable value.")
+                    
+                    # "Buy Now" button (for demo purposes)
+                    if st.button("Buy Now", key=f"buy_{product['name']}"):
+                        st.success("Thank you for your purchase!")
+        
         time.sleep(UPDATE_INTERVAL)
-        demo_placeholder.empty()
+        store_placeholder.empty()
 
 elif page == "Console":
     st.title("Console: Detailed Analytics & Full Price History")
