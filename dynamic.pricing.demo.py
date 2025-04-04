@@ -8,22 +8,22 @@ import time
 # Set page configuration with a plant emoji favicon.
 st.set_page_config(page_title="Eco Store", page_icon="🌱", layout="wide")
 
-# Inject custom CSS for a modern, eco-friendly look.
+# Ενσωμάτωση custom CSS για ένα καθαρό, φιλικό look.
 st.markdown(
     """
     <style>
-    /* Overall background with a soft green gradient */
+    /* Γενικό background με ένα ελαφρύ gradient */
     .stApp {
         background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
     }
-    /* Header styling */
+    /* Στυλ για τα headers */
     h1 {
         color: #2E7D32;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         text-align: center;
         padding-top: 1rem;
     }
-    /* Product card styling */
+    /* Στυλ για τις κάρτες προϊόντων */
     .product-card {
         background-color: #ffffff;
         padding: 1rem;
@@ -40,7 +40,7 @@ st.markdown(
         color: #555555;
         font-size: 0.9rem;
     }
-    /* Button styling */
+    /* Στυλ για τα κουμπιά */
     .stButton>button {
         background-color: #66BB6A;
         color: #ffffff;
@@ -49,7 +49,7 @@ st.markdown(
         padding: 8px 16px;
         font-weight: bold;
     }
-    /* Time info styling */
+    /* Στυλ για την πληροφορία ώρας */
     .time-info {
         text-align: center;
         font-size: 1rem;
@@ -61,10 +61,10 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Update interval (seconds)
+# Update interval σε δευτερόλεπτα
 UPDATE_INTERVAL = 5
 
-# --- Global Product Data (cached for performance) ---
+# --- Global Product Data (cached) ---
 @st.cache_resource
 def get_products():
     return [
@@ -92,11 +92,19 @@ def get_products():
 
 products = get_products()
 
+# Λίστα με URLs εικόνων από το GitHub (αντικαταστήστε τα URLs με τα δικά σας, μετά το raw/)
+image_links = {
+    "Eco Backpack": "https://raw.githubusercontent.com/theodoroskourtalis/georgia.demo/main/eco.bacpac-min.png",
+    "Reusable Water Bottle": "https://raw.githubusercontent.com/theodoroskourtalis/georgia.demo/main/water.bottle-min.png",
+    "Organic T-Shirt": "https://raw.githubusercontent.com/theodoroskourtalis/georgia.demo/main/organic.tshirt-min.png",
+    "Eco Sunglasses": "https://raw.githubusercontent.com/theodoroskourtalis/georgia.demo/main/trannos.west.png"
+}
+
 def get_cycle(current_dt):
     """
-    Determines the active pricing cycle.
-    The cycle starts at 05:00 (Europe/Athens time) and lasts 22 hours.
-    If the current time is before 05:00, the cycle start is set to yesterday at 05:00.
+    Ορίζει τον ενεργό κύκλο τιμολόγησης.
+    Ο κύκλος ξεκινά στις 05:00 (Europe/Athens) και διαρκεί 22 ώρες.
+    Αν η τρέχουσα ώρα είναι πριν τις 05:00, ο κύκλος ξεκινάει χθες στις 05:00.
     """
     tz = pytz.timezone("Europe/Athens")
     current_dt = current_dt.astimezone(tz)
@@ -111,8 +119,8 @@ def get_cycle(current_dt):
 
 def get_current_scheduled_time(current_dt):
     """
-    Floors the elapsed time since cycle start to the nearest UPDATE_INTERVAL.
-    This produces a common scheduled calculation time for all users.
+    Στρογγυλοποιεί το χρόνο που πέρασε από την έναρξη του κύκλου στο πλησιέστερο UPDATE_INTERVAL.
+    Δηλαδή ορίζει έναν κοινό χρόνο υπολογισμού για όλους τους χρήστες.
     """
     cycle_start, _ = get_cycle(current_dt)
     delta = (current_dt - cycle_start).total_seconds()
@@ -123,8 +131,8 @@ def get_current_scheduled_time(current_dt):
 @st.cache_data(ttl=UPDATE_INTERVAL)
 def get_global_scheduled_time():
     """
-    Returns a globally cached scheduled time (floored to UPDATE_INTERVAL seconds)
-    so that all users see the same calculation time.
+    Επιστρέφει τον παγκόσμιο κοινό χρόνο υπολογισμού (πλησιέστερος στο UPDATE_INTERVAL)
+    ώστε όλοι οι χρήστες να βλέπουν την ίδια τιμή.
     """
     tz = pytz.timezone("Europe/Athens")
     now = datetime.datetime.now(tz)
@@ -132,11 +140,11 @@ def get_global_scheduled_time():
 
 def calculate_price(product, scheduled_time):
     """
-    Computes the price using linear interpolation based on the scheduled time:
+    Υπολογίζει την τιμή χρησιμοποιώντας γραμμική παρεμβολή με βάση τον κοινό χρόνο υπολογισμού:
     
     $$ f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}} $$
     
-    The calculation uses the common scheduled time.
+    Χρησιμοποιεί τον κοινό χρόνο υπολογισμού.
     """
     cycle_start, cycle_end = get_cycle(scheduled_time)
     total_duration = (cycle_end - cycle_start).total_seconds()
@@ -145,7 +153,7 @@ def calculate_price(product, scheduled_time):
     price = product["start_price"] + (product["end_price"] - product["start_price"]) * fraction
     return price
 
-# --- Sidebar Navigation for Demo & Console Pages ---
+# --- Sidebar Navigation για τις Σελίδες Demo και Console ---
 page = st.sidebar.selectbox("Select Page", options=["Demo", "Console"])
 tz = pytz.timezone("Europe/Athens")
 
@@ -158,7 +166,7 @@ if page == "Demo":
         scheduled_time = get_global_scheduled_time()
         
         with store_placeholder.container():
-            # Display time info
+            # Εμφάνιση χρόνου
             st.markdown(
                 f"""
                 <div class="time-info">
@@ -171,21 +179,22 @@ if page == "Demo":
             
             st.header("Featured Products")
             
-            # Arrange product cards in two columns
+            # Διάταξη προϊόντων σε 2 στήλες
             cols = st.columns(2)
             for idx, product in enumerate(products):
                 with cols[idx % 2]:
                     st.markdown('<div class="product-card">', unsafe_allow_html=True)
-                    # Placeholder image (replace with real URL if available)
-                    image_url = f"https://via.placeholder.com/300x200.png?text={product['name'].replace(' ', '+')}"
+                    
+                    # Εμφάνιση εικόνας από το GitHub
+                    image_url = image_links.get(product["name"], "https://via.placeholder.com/300x200.png")
                     st.image(image_url, use_container_width=True)
                     
                     st.markdown(f"<h3>{product['name']}</h3>", unsafe_allow_html=True)
                     price = calculate_price(product, scheduled_time)
-                    st.markdown(f"<h4>Sale Price: €{price:.5f}</h4>", unsafe_allow_html=True)
+                    st.markdown(f"<h4>Sale Price: €{price:.4f}</h4>", unsafe_allow_html=True)
                     st.write("High-quality, sustainable, and ethically produced.")
                     
-                    # Ensure button key is unique using product index and scheduled time
+                    # Χρήση μοναδικού key για το κουμπί, προσθέτοντας το scheduled time
                     button_key = f"buy_{product['name']}_{idx}_{scheduled_time.strftime('%H%M%S')}"
                     if st.button("Buy Now", key=button_key):
                         st.success(f"Thank you for purchasing the {product['name']}!")
@@ -198,7 +207,7 @@ if page == "Demo":
 elif page == "Console":
     st.title("Console: Detailed Analytics & Full Price History")
     
-    # Placeholders for dynamic content
+    # Δημιουργία placeholders για το δυναμικό περιεχόμενο.
     latex_placeholder = st.empty()
     details_placeholder = st.empty()
     table_placeholder = st.empty()
@@ -225,7 +234,7 @@ elif page == "Console":
         """
         details_placeholder.markdown(details)
         
-        # Build full price history table from cycle start to scheduled time in UPDATE_INTERVAL steps.
+        # Δημιουργία πίνακα τιμών από την έναρξη του κύκλου μέχρι το scheduled time (βήμα UPDATE_INTERVAL)
         schedule = []
         current_time = cycle_start
         while current_time <= scheduled_time:
@@ -234,7 +243,7 @@ elif page == "Console":
                 delta = (current_time - cycle_start).total_seconds()
                 fraction = delta / total_duration
                 price = product["start_price"] + (product["end_price"] - product["start_price"]) * fraction
-                row[product["name"]] = f"{price:.8f} €"
+                row[product["name"]] = f"{price:.4f} €"
             schedule.append(row)
             current_time += datetime.timedelta(seconds=UPDATE_INTERVAL)
         
