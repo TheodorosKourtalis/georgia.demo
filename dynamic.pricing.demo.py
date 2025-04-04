@@ -14,7 +14,7 @@ import pytz
 
 # --- Global product data ---
 # This function is executed only once per server session.
-@st.experimental_singleton
+@st.cache_resource
 def get_products():
     # Define two products with fixed starting prices.
     # Their ending prices are randomly generated in the range: 0.30*start < end < 0.70*start.
