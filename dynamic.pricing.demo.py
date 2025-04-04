@@ -8,8 +8,6 @@ import time
 # --- Global Product Data (cached for performance) ---
 @st.cache_resource
 def get_products():
-    # Two products with fixed starting prices and randomly generated ending prices
-    # within 30%-70% of the starting price.
     products = [
         {
             "name": "Product A",
@@ -27,12 +25,6 @@ def get_products():
 products = get_products()
 
 def get_cycle(current_dt):
-    """
-    Determines the active price degradation cycle based on Greek time.
-    - If current time is before 5:00 AM, the cycle is from yesterday 7:00 AM to today 5:00 AM.
-    - If current time is between 5:00 and 7:00 AM, the previous cycle has ended.
-    - Otherwise, the cycle is from today 7:00 AM to tomorrow 5:00 AM.
-    """
     tz = pytz.timezone("Europe/Athens")
     current_dt = current_dt.astimezone(tz)
     today = current_dt.date()
@@ -52,17 +44,8 @@ def get_cycle(current_dt):
     return cycle_start, cycle_end
 
 def calculate_price(product, current_dt):
-    """
-    Computes the current price using linear interpolation:
-    
-        f(t) = start_price + (end_price - start_price) * ((t - t_start) / (t_end - t_start))
-    
-    where t_start and t_end define the current degradation cycle.
-    For times between 5:00 and 7:00, the final (degraded) price is returned.
-    """
     tz = pytz.timezone("Europe/Athens")
     current_dt = current_dt.astimezone(tz)
-
     if datetime.time(5, 0) <= current_dt.time() < datetime.time(7, 0):
         return product["end_price"]
 
@@ -87,6 +70,7 @@ if page == "Demo":
     demo_placeholder = st.empty()
     
     while True:
+        loop_start = time.perf_counter()
         now = datetime.datetime.now(tz)
         demo_text = f"**Current Greek Time:** {now.strftime('%H:%M:%S')}\n\n"
         demo_text += "Prices degrade linearly from **7:00 AM** (cycle start) to **5:00 AM** (cycle end) for all users.\n\n"
@@ -94,7 +78,8 @@ if page == "Demo":
             current_price = calculate_price(product, now)
             demo_text += f"**{product['name']}**: {current_price:.4f} €\n\n"
         demo_placeholder.markdown(demo_text)
-        time.sleep(5)  # Delay updated to 5 seconds
+        elapsed_loop = time.perf_counter() - loop_start
+        time.sleep(max(5 - elapsed_loop, 0))
 
 elif page == "Console":
     st.title("Console: Detailed Analytics & Full Price History")
@@ -102,6 +87,7 @@ elif page == "Console":
     table_placeholder = st.empty()
     
     while True:
+        loop_start = time.perf_counter()
         now = datetime.datetime.now(tz)
         cycle_start, cycle_end = get_cycle(now)
         total_duration = (cycle_end - cycle_start).total_seconds()
@@ -125,7 +111,6 @@ elif page == "Console":
         """
         analytics_placeholder.markdown(analytic_text)
         
-        # Build the full price history table from cycle start to current time at 5-second intervals.
         schedule = []
         current_dt = cycle_start
         while current_dt <= now:
@@ -139,4 +124,5 @@ elif page == "Console":
         df = pd.DataFrame(schedule)
         table_placeholder.dataframe(df, use_container_width=True)
         
-        time.sleep(5)  # Delay updated to 5 seconds
+        elapsed_loop = time.perf_counter() - loop_start
+        time.sleep(max(5 - elapsed_loop, 0))
