@@ -63,7 +63,6 @@ def calculate_price(product, current_dt):
     tz = pytz.timezone("Europe/Athens")
     current_dt = current_dt.astimezone(tz)
 
-    # For times between 5:00 and 7:00, return the final price.
     if datetime.time(5, 0) <= current_dt.time() < datetime.time(7, 0):
         return product["end_price"]
 
@@ -95,7 +94,7 @@ if page == "Demo":
             current_price = calculate_price(product, now)
             demo_text += f"**{product['name']}**: {current_price:.4f} €\n\n"
         demo_placeholder.markdown(demo_text)
-        time.sleep(5)
+        time.sleep(5)  # Delay updated to 5 seconds
 
 elif page == "Console":
     st.title("Console: Detailed Analytics & Full Price History")
@@ -140,4 +139,4 @@ elif page == "Console":
         df = pd.DataFrame(schedule)
         table_placeholder.dataframe(df, use_container_width=True)
         
-        time.sleep(5)
+        time.sleep(5)  # Delay updated to 5 seconds
