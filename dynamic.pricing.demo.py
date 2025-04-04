@@ -3,10 +3,46 @@ import datetime
 import random
 import pandas as pd
 import pytz
-import time
 
-# Common update interval (seconds)
+# Set page config with a leafy icon and wide layout.
+st.set_page_config(page_title="Eco Happy Pricing", page_icon="🌱", layout="wide")
+
+# Inject custom CSS to create an eco and happy theme.
+st.markdown(
+    """
+    <style>
+    /* Overall background and text color */
+    body {
+        background-color: #eafbea;
+        color: #2c662d;
+        font-family: 'Comic Sans MS', cursive, sans-serif;
+    }
+    /* Style the header text */
+    h1, h2, h3, h4, h5, h6 {
+        color: #2c662d;
+    }
+    /* Style buttons to have a green, rounded look */
+    .stButton>button {
+        background-color: #a3d9a5;
+        color: #2c662d;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+    }
+    /* Sidebar background */
+    .sidebar .sidebar-content {
+        background-color: #f0fff0;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# Common update interval in seconds.
 UPDATE_INTERVAL = 5
+
+# Auto-refresh the app every UPDATE_INTERVAL seconds.
+st.experimental_autorefresh(interval=UPDATE_INTERVAL * 1000, limit=None, key="autorefresh")
 
 # --- Global Product Data (cached for performance) ---
 @st.cache_resource
@@ -47,7 +83,7 @@ def get_cycle(current_dt):
 def get_current_scheduled_time(current_dt):
     """
     Floors the time elapsed since cycle start to the nearest UPDATE_INTERVAL.
-    This forces a common “scheduled calculation time” for all users.
+    This yields a common “scheduled calculation time” for all users.
     """
     cycle_start, _ = get_cycle(current_dt)
     delta = (current_dt - cycle_start).total_seconds()
@@ -58,8 +94,8 @@ def get_current_scheduled_time(current_dt):
 @st.cache_data(ttl=UPDATE_INTERVAL)
 def get_global_scheduled_time():
     """
-    Returns the global scheduled time computed on the server,
-    cached for UPDATE_INTERVAL seconds so that all users get the same value.
+    Returns the globally cached scheduled time computed on the server.
+    With a TTL equal to the update interval, all users receive the same value.
     """
     tz = pytz.timezone("Europe/Athens")
     now = datetime.datetime.now(tz)
@@ -69,9 +105,9 @@ def calculate_price(product, scheduled_time):
     """
     Computes the price using linear interpolation based on the scheduled time:
     
-    $$ f(t) = \\text{start\\_price} + (\\text{end\\_price} - \\text{start\\_price}) \\times \\frac{t - t_{\\text{start}}}{t_{\\text{end}} - t_{\\text{start}}} $$
+    $$ f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}} $$
     
-    Here the calculation uses the common scheduled time.
+    This calculation uses the common scheduled time.
     """
     cycle_start, cycle_end = get_cycle(scheduled_time)
     total_duration = (cycle_end - cycle_start).total_seconds()
@@ -83,52 +119,36 @@ def calculate_price(product, scheduled_time):
 # --- Sidebar Navigation ---
 page = st.sidebar.selectbox("Select Page", options=["Demo", "Console"])
 tz = pytz.timezone("Europe/Athens")
+now = datetime.datetime.now(tz)
+scheduled_time = get_global_scheduled_time()
 
 if page == "Demo":
-    st.title("Product Demo Page")
-    demo_placeholder = st.empty()
-    
-    while True:
-        loop_start = time.perf_counter()
-        now = datetime.datetime.now(tz)
-        # Get the global scheduled time (shared among all users)
-        scheduled_time = get_global_scheduled_time()
-        demo_text = (
-            f"**Current Greek Time:** {now.strftime('%H:%M:%S')}  \n"
-            f"**Scheduled Calculation Time:** {scheduled_time.strftime('%H:%M:%S')}\n\n"
-            "Prices degrade linearly from **05:00** (cycle start) over 22 hours.\n\n"
+    st.title("Eco Happy Product Demo")
+    demo_text = (
+        f"**Current Greek Time:** {now.strftime('%H:%M:%S')}  \n"
+        f"**Scheduled Calculation Time:** {scheduled_time.strftime('%H:%M:%S')}\n\n"
+        "Prices degrade linearly from **05:00** (cycle start) over 22 hours.\n\n"
+    )
+    for product in products:
+        price = calculate_price(product, scheduled_time)
+        demo_text += (
+            f"**{product['name']}**: {price:.8f} €  \n"
+            f"*Calculated at {scheduled_time.strftime('%H:%M:%S')}*\n\n"
         )
-        for product in products:
-            price = calculate_price(product, scheduled_time)
-            demo_text += (
-                f"**{product['name']}**: {price:.8f} €  \n"
-                f"*Calculated at {scheduled_time.strftime('%H:%M:%S')}*\n\n"
-            )
-        demo_placeholder.markdown(demo_text)
-        elapsed_loop = time.perf_counter() - loop_start
-        time.sleep(max(UPDATE_INTERVAL - elapsed_loop, 0))
+    st.markdown(demo_text)
 
 elif page == "Console":
-    st.title("Console: Detailed Analytics & Full Price History")
-    # Placeholders for dynamic content
-    latex_placeholder = st.empty()
-    details_placeholder = st.empty()
-    table_placeholder = st.empty()
-    download_placeholder = st.empty()
+    st.title("Eco Happy Console: Analytics & Price History")
+    cycle_start, cycle_end = get_cycle(now)
+    total_duration = (cycle_end - cycle_start).total_seconds()
+    elapsed_time = (scheduled_time - cycle_start).total_seconds()
     
-    while True:
-        loop_start = time.perf_counter()
-        now = datetime.datetime.now(tz)
-        cycle_start, cycle_end = get_cycle(now)
-        total_duration = (cycle_end - cycle_start).total_seconds()
-        # Use the global scheduled time for synchronization
-        scheduled_time = get_global_scheduled_time()
-        elapsed_time = (scheduled_time - cycle_start).total_seconds()
-        
-        latex_placeholder.latex(
-            r"f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}}"
-        )
-        details = f"""
+    # Display the linear interpolation function as LaTeX.
+    st.latex(
+        r"f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}}"
+    )
+    
+    details = f"""
 **Cycle Details:**
 
 - **Cycle Start (tₛ):** {cycle_start.strftime("%H:%M:%S")}
@@ -136,42 +156,37 @@ elif page == "Console":
 - **Scheduled Calculation Time (t):** {scheduled_time.strftime("%H:%M:%S")}
 - **Elapsed Time:** {elapsed_time:.8f} seconds
 - **Total Duration:** {total_duration:.8f} seconds
-        """
-        details_placeholder.markdown(details)
-        
-        # Build the full price history table from cycle start to the scheduled time
-        schedule = []
-        current_time = cycle_start
-        while current_time <= scheduled_time:
-            row = {"Time": current_time.strftime("%H:%M:%S")}
-            for product in products:
-                delta = (current_time - cycle_start).total_seconds()
-                fraction = delta / total_duration
-                price = product["start_price"] + (product["end_price"] - product["start_price"]) * fraction
-                row[product["name"]] = f"{price:.8f} €"
-            schedule.append(row)
-            current_time += datetime.timedelta(seconds=UPDATE_INTERVAL)
-        
-        df = pd.DataFrame(schedule)
-        if not df.empty:
-            if len(df) > 100:
-                first_100 = df.head(100)
-                last_100 = df.tail(100)
-                table_placeholder.markdown("### First 100 Entries")
-                table_placeholder.dataframe(first_100, use_container_width=True)
-                table_placeholder.markdown("### Last 100 Entries")
-                table_placeholder.dataframe(last_100, use_container_width=True)
-            else:
-                table_placeholder.dataframe(df, use_container_width=True)
-        
-        csv = df.to_csv(index=False).encode('utf-8')
-        download_placeholder.download_button(
-            label="Download Full Price History",
-            data=csv,
-            file_name="price_history.csv",
-            mime="text/csv",
-            key=f"download_{int(time.time())}"
-        )
-        
-        elapsed_loop = time.perf_counter() - loop_start
-        time.sleep(max(UPDATE_INTERVAL - elapsed_loop, 0))
+    """
+    st.markdown(details)
+    
+    # Build the full price history table from cycle start to scheduled time (in UPDATE_INTERVAL steps)
+    schedule = []
+    current_time = cycle_start
+    while current_time <= scheduled_time:
+        row = {"Time": current_time.strftime("%H:%M:%S")}
+        for product in products:
+            delta = (current_time - cycle_start).total_seconds()
+            fraction = delta / total_duration
+            price = product["start_price"] + (product["end_price"] - product["start_price"]) * fraction
+            row[product["name"]] = f"{price:.8f} €"
+        schedule.append(row)
+        current_time += datetime.timedelta(seconds=UPDATE_INTERVAL)
+    
+    df = pd.DataFrame(schedule)
+    if not df.empty:
+        if len(df) > 100:
+            st.markdown("### First 100 Entries")
+            st.dataframe(df.head(100), use_container_width=True)
+            st.markdown("### Last 100 Entries")
+            st.dataframe(df.tail(100), use_container_width=True)
+        else:
+            st.dataframe(df, use_container_width=True)
+    
+    csv = df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="Download Full Price History",
+        data=csv,
+        file_name="price_history.csv",
+        mime="text/csv",
+        key="download_full_history"
+    )
