@@ -5,7 +5,7 @@ import pandas as pd
 import pytz
 import time
 
-# --- Global Product Data (cached) ---
+# --- Global Product Data (cached for performance) ---
 @st.cache_resource
 def get_products():
     # Two products with fixed starting prices and randomly generated ending prices
@@ -28,9 +28,9 @@ products = get_products()
 
 def get_cycle(current_dt):
     """
-    Determines the current price degradation cycle.
+    Determines the active price degradation cycle based on Greek time.
     - If current time is before 5:00 AM, the cycle is from yesterday 7:00 AM to today 5:00 AM.
-    - If the time is between 5:00 AM and 7:00 AM, the previous cycle has ended.
+    - If current time is between 5:00 and 7:00 AM, the previous cycle has ended.
     - Otherwise, the cycle is from today 7:00 AM to tomorrow 5:00 AM.
     """
     tz = pytz.timezone("Europe/Athens")
@@ -53,14 +53,17 @@ def get_cycle(current_dt):
 
 def calculate_price(product, current_dt):
     """
-    Computes the current price using linear interpolation between the starting and ending prices,
-    based on the current degradation cycle.
+    Computes the current price using a linear interpolation function:
+    
+        f(t) = start_price + (end_price - start_price) * ((t - t_start) / (t_end - t_start))
+    
+    where t_start and t_end define the current degradation cycle.
     For times between 5:00 and 7:00, the final (degraded) price is returned.
     """
     tz = pytz.timezone("Europe/Athens")
     current_dt = current_dt.astimezone(tz)
 
-    # For times between 5:00 and 7:00, return the final price.
+    # Between 5:00 and 7:00, return the final price.
     if datetime.time(5, 0) <= current_dt.time() < datetime.time(7, 0):
         return product["end_price"]
 
@@ -82,43 +85,62 @@ tz = pytz.timezone("Europe/Athens")
 
 if page == "Demo":
     st.title("Product Demo Page")
-    # Create a placeholder for the dynamic content.
-    placeholder = st.empty()
-    
-    # Update the price every 2 seconds.
+    # A placeholder for dynamic price updates
+    demo_placeholder = st.empty()
     while True:
         now = datetime.datetime.now(tz)
-        text = f"Current Greek Time: {now.strftime('%H:%M:%S')}\n"
-        text += "Prices degrade linearly from 7:00 AM (cycle start) to 5:00 AM (cycle end) for all users.\n\n"
+        demo_text = f"**Current Greek Time:** {now.strftime('%H:%M:%S')}\n\n"
+        demo_text += "Prices degrade linearly from **7:00 AM** (cycle start) to **5:00 AM** (cycle end) for all users.\n\n"
         for product in products:
             current_price = calculate_price(product, now)
-            text += f"{product['name']}: {current_price:.4f} €\n"
-        placeholder.text(text)
+            demo_text += f"**{product['name']}**: {current_price:.4f} €\n\n"
+        demo_placeholder.markdown(demo_text)
         time.sleep(2)
 
 elif page == "Console":
-    st.title("Console: Price Degradation Details")
-    st.write("This page displays detailed product data and a schedule of price degradation.")
-    st.markdown("### Product Details")
-    for product in products:
-        st.write(f"**{product['name']}**: Start Price = {product['start_price']:.4f} €, "
-                 f"End Price = {product['end_price']:.4f} €")
+    st.title("Console: Detailed Analytics & Full Price History")
+    # Create two placeholders: one for analytics and one for the table
+    analytics_placeholder = st.empty()
+    table_placeholder = st.empty()
     
-    st.markdown("---")
-    st.markdown("### Price Schedule (Current Cycle)")
-    now = datetime.datetime.now(tz)
-    cycle_start, cycle_end = get_cycle(now)
-    
-    # Generate a schedule table with 15-minute intervals.
-    schedule = []
-    current_dt = cycle_start
-    while current_dt <= cycle_end:
-        row = {"Time": current_dt.strftime("%d-%m %H:%M")}
-        for product in products:
-            price = calculate_price(product, current_dt)
-            row[product["name"]] = f"{price:.4f} €"
-        schedule.append(row)
-        current_dt += datetime.timedelta(minutes=15)
-    
-    df = pd.DataFrame(schedule)
-    st.dataframe(df)
+    while True:
+        now = datetime.datetime.now(tz)
+        cycle_start, cycle_end = get_cycle(now)
+        total_duration = (cycle_end - cycle_start).total_seconds()
+        elapsed = (now - cycle_start).total_seconds()
+        
+        # Markdown with mathematical explanation
+        analytic_text = f"""
+        ### Price Degradation Function
+        
+        The current price is computed using a **linear interpolation** function:
+        
+        \\[
+        f(t) = start\\_price + (end\\_price - start\\_price) \\times \\frac{{t - t_{{start}}}}{{t_{{end}} - t_{{start}}}}
+        \\]
+        
+        **Cycle Details:**  
+        - **Cycle Start (tₛ):** {cycle_start.strftime("%H:%M:%S")}  
+        - **Cycle End (tₑ):** {cycle_end.strftime("%H:%M:%S")}  
+        - **Current Time (t):** {now.strftime("%H:%M:%S")}  
+        - **Elapsed Time:** {elapsed:.2f} seconds  
+        - **Total Duration:** {total_duration:.2f} seconds  
+        """
+        analytics_placeholder.markdown(analytic_text)
+        
+        # Build the full price history table from cycle start to current time at 2-second intervals.
+        schedule = []
+        current_dt = cycle_start
+        # Note: For long cycles, this table can become large. This demo assumes moderate usage.
+        while current_dt <= now:
+            row = {"Time": current_dt.strftime("%H:%M:%S")}
+            for product in products:
+                price = calculate_price(product, current_dt)
+                row[product["name"]] = f"{price:.4f} €"
+            schedule.append(row)
+            current_dt += datetime.timedelta(seconds=2)
+        
+        df = pd.DataFrame(schedule)
+        table_placeholder.dataframe(df, use_container_width=True)
+        
+        time.sleep(2)
