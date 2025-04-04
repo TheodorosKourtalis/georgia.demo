@@ -182,7 +182,7 @@ if page == "Demo":
                     
                     st.markdown(f"<h3>{product['name']}</h3>", unsafe_allow_html=True)
                     price = calculate_price(product, scheduled_time)
-                    st.markdown(f"<h4>Sale Price: €{price:.2f}</h4>", unsafe_allow_html=True)
+                    st.markdown(f"<h4>Sale Price: €{price:.5f}</h4>", unsafe_allow_html=True)
                     st.write("High-quality, sustainable, and ethically produced.")
                     
                     # Ensure button key is unique using product index and scheduled time
