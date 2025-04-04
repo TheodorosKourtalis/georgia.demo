@@ -5,6 +5,39 @@ import pandas as pd
 import pytz
 import time
 
+# Set page configuration with a plant emoji favicon.
+st.set_page_config(page_title="Eco Happy Pricing", page_icon="🌱", layout="wide")
+
+# Inject custom CSS for a cool, eco‑friendly look.
+st.markdown(
+    """
+    <style>
+    /* Set a soft green gradient background for the entire app */
+    .stApp {
+        background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
+    }
+    /* Style buttons with a modern green look */
+    .stButton>button {
+        background-color: #66BB6A;
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+    }
+    /* Customize header and text styles */
+    h1, h2, h3, h4, h5, h6, p {
+        color: #33691E;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    /* Adjust sidebar background for a light, clean look */
+    .css-1d391kg, [data-testid="stSidebar"] .sidebar-content {
+        background-color: #F1F8E9;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 # Common update interval (seconds)
 UPDATE_INTERVAL = 5
 
@@ -69,7 +102,7 @@ def calculate_price(product, scheduled_time):
     """
     Computes the price using linear interpolation based on the scheduled time:
     
-    $$ f(t) = \\text{start\\_price} + (\\text{end\\_price} - \\text{start\\_price}) \\times \\frac{t - t_{\\text{start}}}{t_{\\text{end}} - t_{\\text{start}}} $$
+    $$ f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}} $$
     
     Here the calculation uses the common scheduled time.
     """
@@ -85,13 +118,11 @@ page = st.sidebar.selectbox("Select Page", options=["Demo", "Console"])
 tz = pytz.timezone("Europe/Athens")
 
 if page == "Demo":
-    st.title("Product Demo Page")
+    st.title("Eco Happy Product Demo")
     demo_placeholder = st.empty()
     
     while True:
-        loop_start = time.perf_counter()
         now = datetime.datetime.now(tz)
-        # Get the global scheduled time (shared among all users)
         scheduled_time = get_global_scheduled_time()
         demo_text = (
             f"**Current Greek Time:** {now.strftime('%H:%M:%S')}  \n"
@@ -105,8 +136,8 @@ if page == "Demo":
                 f"*Calculated at {scheduled_time.strftime('%H:%M:%S')}*\n\n"
             )
         demo_placeholder.markdown(demo_text)
-        elapsed_loop = time.perf_counter() - loop_start
-        time.sleep(max(UPDATE_INTERVAL - elapsed_loop, 0))
+        time.sleep(UPDATE_INTERVAL)
+        demo_placeholder.empty()
 
 elif page == "Console":
     st.title("Console: Detailed Analytics & Full Price History")
@@ -117,11 +148,9 @@ elif page == "Console":
     download_placeholder = st.empty()
     
     while True:
-        loop_start = time.perf_counter()
         now = datetime.datetime.now(tz)
         cycle_start, cycle_end = get_cycle(now)
         total_duration = (cycle_end - cycle_start).total_seconds()
-        # Use the global scheduled time for synchronization
         scheduled_time = get_global_scheduled_time()
         elapsed_time = (scheduled_time - cycle_start).total_seconds()
         
@@ -139,7 +168,7 @@ elif page == "Console":
         """
         details_placeholder.markdown(details)
         
-        # Build the full price history table from cycle start to the scheduled time
+        # Build the full price history table from cycle start to scheduled time in UPDATE_INTERVAL steps.
         schedule = []
         current_time = cycle_start
         while current_time <= scheduled_time:
@@ -155,12 +184,10 @@ elif page == "Console":
         df = pd.DataFrame(schedule)
         if not df.empty:
             if len(df) > 100:
-                first_100 = df.head(100)
-                last_100 = df.tail(100)
                 table_placeholder.markdown("### First 100 Entries")
-                table_placeholder.dataframe(first_100, use_container_width=True)
+                table_placeholder.dataframe(df.head(100), use_container_width=True)
                 table_placeholder.markdown("### Last 100 Entries")
-                table_placeholder.dataframe(last_100, use_container_width=True)
+                table_placeholder.dataframe(df.tail(100), use_container_width=True)
             else:
                 table_placeholder.dataframe(df, use_container_width=True)
         
@@ -172,6 +199,8 @@ elif page == "Console":
             mime="text/csv",
             key=f"download_{int(time.time())}"
         )
-        
-        elapsed_loop = time.perf_counter() - loop_start
-        time.sleep(max(UPDATE_INTERVAL - elapsed_loop, 0))
+        time.sleep(UPDATE_INTERVAL)
+        latex_placeholder.empty()
+        details_placeholder.empty()
+        table_placeholder.empty()
+        download_placeholder.empty()
