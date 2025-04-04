@@ -5,19 +5,24 @@ import pandas as pd
 import pytz
 import time
 
+# Update interval in seconds (common to both pages)
+UPDATE_INTERVAL = 5
+
 # --- Global Product Data (cached for performance) ---
 @st.cache_resource
 def get_products():
+    # Two products with fixed starting prices and randomly generated ending prices
+    # within 30%-70% of the starting price.
     products = [
         {
             "name": "Product A",
-            "start_price": 100,
-            "end_price": random.uniform(0.30 * 100, 0.70 * 100)
+            "start_price": 100.0,
+            "end_price": random.uniform(0.30 * 100.0, 0.70 * 100.0)
         },
         {
             "name": "Product B",
-            "start_price": 200,
-            "end_price": random.uniform(0.30 * 200, 0.70 * 200)
+            "start_price": 200.0,
+            "end_price": random.uniform(0.30 * 200.0, 0.70 * 200.0)
         }
     ]
     return products
@@ -25,6 +30,12 @@ def get_products():
 products = get_products()
 
 def get_cycle(current_dt):
+    """
+    Determines the active price degradation cycle based on Greek time.
+    - If current time is before 5:00 AM, the cycle is from yesterday 7:00 AM to today 5:00 AM.
+    - If current time is between 5:00 and 7:00 AM, the previous cycle is considered completed.
+    - Otherwise, the cycle is from today 7:00 AM to tomorrow 5:00 AM.
+    """
     tz = pytz.timezone("Europe/Athens")
     current_dt = current_dt.astimezone(tz)
     today = current_dt.date()
@@ -44,8 +55,16 @@ def get_cycle(current_dt):
     return cycle_start, cycle_end
 
 def calculate_price(product, current_dt):
+    """
+    Computes the current price using a linear interpolation function:
+    
+    $$ f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}} $$
+    
+    For times between 5:00 and 7:00 AM the final (degraded) price is returned.
+    """
     tz = pytz.timezone("Europe/Athens")
     current_dt = current_dt.astimezone(tz)
+
     if datetime.time(5, 0) <= current_dt.time() < datetime.time(7, 0):
         return product["end_price"]
 
@@ -73,13 +92,13 @@ if page == "Demo":
         loop_start = time.perf_counter()
         now = datetime.datetime.now(tz)
         demo_text = f"**Current Greek Time:** {now.strftime('%H:%M:%S')}\n\n"
-        demo_text += "Prices degrade linearly from **7:00 AM** (cycle start) to **5:00 AM** (cycle end) for all users.\n\n"
+        demo_text += ("Prices degrade linearly from **7:00 AM** (cycle start) to **5:00 AM** (cycle end) for all users.\n\n")
         for product in products:
             current_price = calculate_price(product, now)
-            demo_text += f"**{product['name']}**: {current_price:.4f} €\n\n"
+            demo_text += f"**{product['name']}**: {current_price:.8f} €\n\n"
         demo_placeholder.markdown(demo_text)
         elapsed_loop = time.perf_counter() - loop_start
-        time.sleep(max(5 - elapsed_loop, 0))
+        time.sleep(max(UPDATE_INTERVAL - elapsed_loop, 0))
 
 elif page == "Console":
     st.title("Console: Detailed Analytics & Full Price History")
@@ -91,38 +110,54 @@ elif page == "Console":
         now = datetime.datetime.now(tz)
         cycle_start, cycle_end = get_cycle(now)
         total_duration = (cycle_end - cycle_start).total_seconds()
-        elapsed = (now - cycle_start).total_seconds()
+        elapsed_time = (now - cycle_start).total_seconds()
         
-        analytic_text = f"""
-        ### Price Degradation Function
+        # Display the linear interpolation function as LaTeX
+        analytics_placeholder.latex(
+            r"f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}}"
+        )
         
-        The current price is computed using a **linear interpolation** function:
-        
-        \\[
-        f(t) = start\\_price + (end\\_price - start\\_price) \\times \\frac{{t - t_{{start}}}}{{t_{{end}} - t_{{start}}}
-        \\]
-        
-        **Cycle Details:**  
-        - **Cycle Start (tₛ):** {cycle_start.strftime("%H:%M:%S")}  
-        - **Cycle End (tₑ):** {cycle_end.strftime("%H:%M:%S")}  
-        - **Current Time (t):** {now.strftime("%H:%M:%S")}  
-        - **Elapsed Time:** {elapsed:.2f} seconds  
-        - **Total Duration:** {total_duration:.2f} seconds  
+        analytics_details = f"""
+**Cycle Details:**
+- **Cycle Start (tₛ):** {cycle_start.strftime("%H:%M:%S")}
+- **Cycle End (tₑ):** {cycle_end.strftime("%H:%M:%S")}
+- **Current Time (t):** {now.strftime("%H:%M:%S")}
+- **Elapsed Time:** {elapsed_time:.8f} seconds
+- **Total Duration:** {total_duration:.8f} seconds
         """
-        analytics_placeholder.markdown(analytic_text)
+        st.markdown(analytics_details)
         
+        # Build full price history from cycle_start to now at 5-second intervals.
         schedule = []
         current_dt = cycle_start
         while current_dt <= now:
             row = {"Time": current_dt.strftime("%H:%M:%S")}
             for product in products:
                 price = calculate_price(product, current_dt)
-                row[product["name"]] = f"{price:.4f} €"
+                row[product["name"]] = f"{price:.8f} €"
             schedule.append(row)
-            current_dt += datetime.timedelta(seconds=5)
+            current_dt += datetime.timedelta(seconds=UPDATE_INTERVAL)
         
         df = pd.DataFrame(schedule)
-        table_placeholder.dataframe(df, use_container_width=True)
+        
+        # Show two separate tables: first 100 entries and last 100 entries (if available)
+        if not df.empty:
+            if len(df) > 100:
+                st.markdown("### First 100 Entries")
+                st.dataframe(df.head(100), use_container_width=True)
+                st.markdown("### Last 100 Entries")
+                st.dataframe(df.tail(100), use_container_width=True)
+            else:
+                st.dataframe(df, use_container_width=True)
+        
+        # Provide a download button for the full table (CSV) without displaying it
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="Download Full Price History",
+            data=csv,
+            file_name="price_history.csv",
+            mime="text/csv"
+        )
         
         elapsed_loop = time.perf_counter() - loop_start
-        time.sleep(max(5 - elapsed_loop, 0))
+        time.sleep(max(UPDATE_INTERVAL - elapsed_loop, 0))
