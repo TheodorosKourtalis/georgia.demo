@@ -1,17 +1,18 @@
 import streamlit as st
 import datetime
 import random
+import pandas as pd
 import pytz
 import time
 
 # Set page configuration with a plant emoji favicon.
 st.set_page_config(page_title="Eco Store", page_icon="🌱", layout="wide")
 
-# Inject custom CSS for a modern, clean store look.
+# Inject custom CSS for a modern, eco-friendly look.
 st.markdown(
     """
     <style>
-    /* Overall background with a light gradient */
+    /* Overall background with a soft green gradient */
     .stApp {
         background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
     }
@@ -63,7 +64,7 @@ st.markdown(
 # Update interval (seconds)
 UPDATE_INTERVAL = 5
 
-# --- Global Product Data (cached) ---
+# --- Global Product Data (cached for performance) ---
 @st.cache_resource
 def get_products():
     return [
@@ -133,7 +134,7 @@ def calculate_price(product, scheduled_time):
     """
     Computes the price using linear interpolation based on the scheduled time:
     
-    f(t) = start_price + (end_price - start_price) * ((t - t_start) / (t_end - t_start))
+    $$ f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}} $$
     
     The calculation uses the common scheduled time.
     """
@@ -144,46 +145,120 @@ def calculate_price(product, scheduled_time):
     price = product["start_price"] + (product["end_price"] - product["start_price"]) * fraction
     return price
 
-# --- Main Demo: Store Page ---
-st.title("Welcome to Eco Store")
+# --- Sidebar Navigation for Demo & Console Pages ---
+page = st.sidebar.selectbox("Select Page", options=["Demo", "Console"])
+tz = pytz.timezone("Europe/Athens")
 
-# Use a placeholder to refresh the store layout every UPDATE_INTERVAL seconds.
-store_placeholder = st.empty()
-
-while True:
-    tz = pytz.timezone("Europe/Athens")
-    now = datetime.datetime.now(tz)
-    scheduled_time = get_global_scheduled_time()
+if page == "Demo":
+    st.title("Welcome to Eco Store")
+    store_placeholder = st.empty()
     
-    with store_placeholder.container():
-        # Time Information at the top
-        st.markdown(
-            f"""
-            <div class="time-info">
-                <strong>Current Greek Time:</strong> {now.strftime('%H:%M:%S')}<br>
-                <strong>Sale Price Calculation Time:</strong> {scheduled_time.strftime('%H:%M:%S')}
-            </div>
-            """, unsafe_allow_html=True
+    while True:
+        now = datetime.datetime.now(tz)
+        scheduled_time = get_global_scheduled_time()
+        
+        with store_placeholder.container():
+            # Display time info
+            st.markdown(
+                f"""
+                <div class="time-info">
+                    <strong>Current Greek Time:</strong> {now.strftime('%H:%M:%S')}<br>
+                    <strong>Sale Price Calculation Time:</strong> {scheduled_time.strftime('%H:%M:%S')}
+                </div>
+                """, unsafe_allow_html=True
+            )
+            st.markdown("<hr>", unsafe_allow_html=True)
+            
+            st.header("Featured Products")
+            
+            # Arrange product cards in two columns
+            cols = st.columns(2)
+            for idx, product in enumerate(products):
+                with cols[idx % 2]:
+                    st.markdown('<div class="product-card">', unsafe_allow_html=True)
+                    # Placeholder image (replace with real URL if available)
+                    image_url = f"https://via.placeholder.com/300x200.png?text={product['name'].replace(' ', '+')}"
+                    st.image(image_url, use_container_width=True)
+                    
+                    st.markdown(f"<h3>{product['name']}</h3>", unsafe_allow_html=True)
+                    price = calculate_price(product, scheduled_time)
+                    st.markdown(f"<h4>Sale Price: €{price:.2f}</h4>", unsafe_allow_html=True)
+                    st.write("High-quality, sustainable, and ethically produced.")
+                    
+                    # Ensure button key is unique using product index and scheduled time
+                    button_key = f"buy_{product['name']}_{idx}_{scheduled_time.strftime('%H%M%S')}"
+                    if st.button("Buy Now", key=button_key):
+                        st.success(f"Thank you for purchasing the {product['name']}!")
+                    
+                    st.markdown("</div>", unsafe_allow_html=True)
+        
+        time.sleep(UPDATE_INTERVAL)
+        store_placeholder.empty()
+
+elif page == "Console":
+    st.title("Console: Detailed Analytics & Full Price History")
+    
+    # Placeholders for dynamic content
+    latex_placeholder = st.empty()
+    details_placeholder = st.empty()
+    table_placeholder = st.empty()
+    download_placeholder = st.empty()
+    
+    while True:
+        now = datetime.datetime.now(tz)
+        cycle_start, cycle_end = get_cycle(now)
+        total_duration = (cycle_end - cycle_start).total_seconds()
+        scheduled_time = get_global_scheduled_time()
+        elapsed_time = (scheduled_time - cycle_start).total_seconds()
+        
+        latex_placeholder.latex(
+            r"f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}}"
         )
-        st.markdown("<hr>", unsafe_allow_html=True)
+        details = f"""
+**Cycle Details:**
+
+- **Cycle Start (tₛ):** {cycle_start.strftime("%H:%M:%S")}
+- **Cycle End (tₑ):** {cycle_end.strftime("%H:%M:%S")}
+- **Scheduled Calculation Time (t):** {scheduled_time.strftime("%H:%M:%S")}
+- **Elapsed Time:** {elapsed_time:.8f} seconds
+- **Total Duration:** {total_duration:.8f} seconds
+        """
+        details_placeholder.markdown(details)
         
-        st.header("Featured Products")
+        # Build full price history table from cycle start to scheduled time in UPDATE_INTERVAL steps.
+        schedule = []
+        current_time = cycle_start
+        while current_time <= scheduled_time:
+            row = {"Time": current_time.strftime("%H:%M:%S")}
+            for product in products:
+                delta = (current_time - cycle_start).total_seconds()
+                fraction = delta / total_duration
+                price = product["start_price"] + (product["end_price"] - product["start_price"]) * fraction
+                row[product["name"]] = f"{price:.8f} €"
+            schedule.append(row)
+            current_time += datetime.timedelta(seconds=UPDATE_INTERVAL)
         
-        # Arrange product cards in a grid (2 columns)
-        cols = st.columns(2)
-        for idx, product in enumerate(products):
-            with cols[idx % 2]:
-                st.markdown(f"""<div class="product-card">""", unsafe_allow_html=True)
-                # Placeholder image (replace URL with real image if available)
-                image_url = f"https://via.placeholder.com/300x200.png?text={product['name'].replace(' ', '+')}"
-                st.image(image_url, use_column_width=True)
-                st.markdown(f"<h3>{product['name']}</h3>", unsafe_allow_html=True)
-                price = calculate_price(product, scheduled_time)
-                st.markdown(f"<h4>Sale Price: €{price:.2f}</h4>", unsafe_allow_html=True)
-                st.write("High-quality, sustainable, and ethically produced.")
-                if st.button("Buy Now", key=f"buy_{product['name']}"):
-                    st.success(f"Thank you for purchasing the {product['name']}!")
-                st.markdown("</div>", unsafe_allow_html=True)
+        df = pd.DataFrame(schedule)
+        if not df.empty:
+            if len(df) > 100:
+                table_placeholder.markdown("### First 100 Entries")
+                table_placeholder.dataframe(df.head(100), use_container_width=True)
+                table_placeholder.markdown("### Last 100 Entries")
+                table_placeholder.dataframe(df.tail(100), use_container_width=True)
+            else:
+                table_placeholder.dataframe(df, use_container_width=True)
         
-    time.sleep(UPDATE_INTERVAL)
-    store_placeholder.empty()
+        csv = df.to_csv(index=False).encode('utf-8')
+        download_placeholder.download_button(
+            label="Download Full Price History",
+            data=csv,
+            file_name="price_history.csv",
+            mime="text/csv",
+            key=f"download_{int(time.time())}"
+        )
+        
+        time.sleep(UPDATE_INTERVAL)
+        latex_placeholder.empty()
+        details_placeholder.empty()
+        table_placeholder.empty()
+        download_placeholder.empty()
