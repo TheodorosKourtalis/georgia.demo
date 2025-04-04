@@ -53,7 +53,7 @@ def get_cycle(current_dt):
 
 def calculate_price(product, current_dt):
     """
-    Computes the current price using a linear interpolation function:
+    Computes the current price using linear interpolation:
     
         f(t) = start_price + (end_price - start_price) * ((t - t_start) / (t_end - t_start))
     
@@ -63,7 +63,7 @@ def calculate_price(product, current_dt):
     tz = pytz.timezone("Europe/Athens")
     current_dt = current_dt.astimezone(tz)
 
-    # Between 5:00 and 7:00, return the final price.
+    # For times between 5:00 and 7:00, return the final price.
     if datetime.time(5, 0) <= current_dt.time() < datetime.time(7, 0):
         return product["end_price"]
 
@@ -85,8 +85,8 @@ tz = pytz.timezone("Europe/Athens")
 
 if page == "Demo":
     st.title("Product Demo Page")
-    # A placeholder for dynamic price updates
     demo_placeholder = st.empty()
+    
     while True:
         now = datetime.datetime.now(tz)
         demo_text = f"**Current Greek Time:** {now.strftime('%H:%M:%S')}\n\n"
@@ -95,11 +95,10 @@ if page == "Demo":
             current_price = calculate_price(product, now)
             demo_text += f"**{product['name']}**: {current_price:.4f} €\n\n"
         demo_placeholder.markdown(demo_text)
-        time.sleep(2)
+        time.sleep(5)
 
 elif page == "Console":
     st.title("Console: Detailed Analytics & Full Price History")
-    # Create two placeholders: one for analytics and one for the table
     analytics_placeholder = st.empty()
     table_placeholder = st.empty()
     
@@ -109,14 +108,13 @@ elif page == "Console":
         total_duration = (cycle_end - cycle_start).total_seconds()
         elapsed = (now - cycle_start).total_seconds()
         
-        # Markdown with mathematical explanation
         analytic_text = f"""
         ### Price Degradation Function
         
         The current price is computed using a **linear interpolation** function:
         
         \\[
-        f(t) = start\\_price + (end\\_price - start\\_price) \\times \\frac{{t - t_{{start}}}}{{t_{{end}} - t_{{start}}}}
+        f(t) = start\\_price + (end\\_price - start\\_price) \\times \\frac{{t - t_{{start}}}}{{t_{{end}} - t_{{start}}}
         \\]
         
         **Cycle Details:**  
@@ -128,19 +126,18 @@ elif page == "Console":
         """
         analytics_placeholder.markdown(analytic_text)
         
-        # Build the full price history table from cycle start to current time at 2-second intervals.
+        # Build the full price history table from cycle start to current time at 5-second intervals.
         schedule = []
         current_dt = cycle_start
-        # Note: For long cycles, this table can become large. This demo assumes moderate usage.
         while current_dt <= now:
             row = {"Time": current_dt.strftime("%H:%M:%S")}
             for product in products:
                 price = calculate_price(product, current_dt)
                 row[product["name"]] = f"{price:.4f} €"
             schedule.append(row)
-            current_dt += datetime.timedelta(seconds=2)
+            current_dt += datetime.timedelta(seconds=5)
         
         df = pd.DataFrame(schedule)
         table_placeholder.dataframe(df, use_container_width=True)
         
-        time.sleep(2)
+        time.sleep(5)
