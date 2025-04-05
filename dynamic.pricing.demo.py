@@ -65,7 +65,7 @@ st.markdown(
     /* Floating cart icon styling (top-right) */
     .floating-cart {
         position: fixed;
-        top: 60px;
+        top: 80px;
         right: 20px;
         background-color: #66BB6A;
         color: #ffffff;
