@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sat Apr  5 03:21:47 2025
+Created on Sat Apr  5 03:40:51 2025
 
 @author: thodoreskourtales
 """
@@ -34,12 +34,12 @@ st.markdown(
     /* Product card styling */
     .product-card {
         background-color: #ffffff;
-        padding: 0.1rem 0.3rem;  /* Μειωμένο padding */
-        margin: 0.1rem;          /* Μειωμένο margin */
-        border-radius: 5px;      /* Μικρότερος στρογγυλεμένος ακρογωνιαίος */
-        box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.1);  /* Ελαφρύτερη σκιά */
+        padding: 1rem;
+        margin: 0.5rem;
+        border-radius: 10px;
+        box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.15);
         text-align: center;
-}
+    }
     .product-card h3 {
         color: #33691E;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
