@@ -126,7 +126,7 @@ def get_products():
 
 products = get_products()
 
-# Λίστα με URLs εικόνων από GitHub (αντικαταστήστε τα URLs με τα δικά σας, χρησιμοποιώντας raw links)
+# List of image URLs from GitHub (replace with your own URLs using raw links)
 image_links = {
     "Eco Backpack": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/eco.bacpac-min.png",
     "Reusable Water Bottle": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/water.bottle-min.png",
@@ -139,9 +139,9 @@ UPDATE_INTERVAL = 5
 
 def get_cycle(current_dt):
     """
-    Ορίζει τον ενεργό κύκλο τιμολόγησης.
-    Ο κύκλος ξεκινάει στις 05:00 (Europe/Athens) και διαρκεί 22 ώρες.
-    Αν η τρέχουσα ώρα είναι πριν τις 05:00, ο κύκλος ξεκινάει χθες στις 05:00.
+    Defines the active pricing cycle.
+    The cycle starts at 05:00 (Europe/Athens) and lasts for 22 hours.
+    If the current time is before 05:00, the cycle started yesterday at 05:00.
     """
     tz = pytz.timezone("Europe/Athens")
     current_dt = current_dt.astimezone(tz)
@@ -156,8 +156,8 @@ def get_cycle(current_dt):
 
 def get_current_scheduled_time(current_dt):
     """
-    Στρογγυλοποιεί το χρόνο που έχει περάσει από την έναρξη του κύκλου στο πλησιέστερο UPDATE_INTERVAL.
-    Δηλαδή, ορίζει έναν κοινό χρόνο υπολογισμού για όλους τους χρήστες.
+    Rounds the time elapsed since the cycle start to the nearest UPDATE_INTERVAL.
+    This creates a common calculation time for all users.
     """
     cycle_start, _ = get_cycle(current_dt)
     delta = (current_dt - cycle_start).total_seconds()
@@ -168,8 +168,8 @@ def get_current_scheduled_time(current_dt):
 @st.cache_data(ttl=UPDATE_INTERVAL)
 def get_global_scheduled_time():
     """
-    Επιστρέφει τον παγκόσμιο κοινό χρόνο υπολογισμού (πλησιέστερος στο UPDATE_INTERVAL)
-    ώστε όλοι οι χρήστες να βλέπουν την ίδια τιμή.
+    Returns the global common calculation time (rounded to the nearest UPDATE_INTERVAL)
+    so that all users see the same value.
     """
     tz = pytz.timezone("Europe/Athens")
     now = datetime.datetime.now(tz)
@@ -177,11 +177,11 @@ def get_global_scheduled_time():
 
 def calculate_price(product, scheduled_time):
     """
-    Υπολογίζει την τιμή χρησιμοποιώντας γραμμική παρεμβολή με βάση το κοινό χρόνο:
+    Calculates the price using linear interpolation based on the common time:
     
     $$ f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}} $$
     
-    Χρησιμοποιεί τον κοινό χρόνο υπολογισμού.
+    Uses the common calculation time.
     """
     cycle_start, cycle_end = get_cycle(scheduled_time)
     total_duration = (cycle_end - cycle_start).total_seconds()
@@ -191,7 +191,7 @@ def calculate_price(product, scheduled_time):
     return price
 
 # Determine current page: if query parameter 'page' is set to 'Cart', use that; otherwise use the sidebar.
-query_params = st.experimental_get_query_params()
+query_params = st.query_params
 if "page" in query_params and query_params["page"][0] == "Cart":
     current_page = "Cart"
 else:
@@ -228,7 +228,7 @@ if current_page == "Cart":
     if st.button("Continue Shopping"):
         # Reset the URL query parameter to return to Demo page.
         st.experimental_set_query_params(page="Demo")
-        st.experimental_rerun()
+        st.rerun()
     
     # Also show the floating cart icon (optional on Cart page)
     render_cart_icon()
@@ -291,7 +291,7 @@ elif current_page == "Demo":
         
         time.sleep(UPDATE_INTERVAL)
         store_placeholder.empty()
-        st.experimental_rerun()
+        st.rerun()
 
 elif current_page == "Console":
     st.title("Console: Detailed Analytics & Full Price History")
@@ -363,4 +363,4 @@ elif current_page == "Console":
         details_placeholder.empty()
         table_placeholder.empty()
         download_placeholder.empty()
-        st.experimental_rerun()
+        st.rerun()
