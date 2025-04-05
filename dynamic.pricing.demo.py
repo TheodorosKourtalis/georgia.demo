@@ -8,11 +8,11 @@ import time
 # Set page configuration with a plant emoji favicon.
 st.set_page_config(page_title="Eco Store", page_icon="🌱", layout="wide")
 
-# Αρχικοποίηση session state για το cart, αν δεν υπάρχει ήδη.
+# Initialize session state for the cart if not already present.
 if "cart" not in st.session_state:
     st.session_state.cart = []
 
-# Inject custom CSS για ένα modern, eco-friendly look και για το floating cart icon.
+# Inject custom CSS for a modern, eco-friendly look and for the floating cart icon.
 st.markdown(
     """
     <style>
@@ -25,7 +25,7 @@ st.markdown(
         color: #2E7D32;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    /* Product card styling - smaller boxes */
+    /* Product card styling (smaller boxes) */
     .product-card {
         background-color: #ffffff;
         padding: 0.5rem;
@@ -54,10 +54,10 @@ st.markdown(
         color: #2E7D32;
         margin-bottom: 1rem;
     }
-    /* Floating cart icon styling positioned at top-right */
+    /* Floating cart icon styling (top-right) */
     .floating-cart {
         position: fixed;
-        top: 80px;  /* από 20px σε 40px */
+        top: 20px;
         right: 20px;
         background-color: #66BB6A;
         color: #ffffff;
@@ -68,7 +68,7 @@ st.markdown(
         cursor: pointer;
         box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.3);
         z-index: 9999;
-}
+    }
     .cart-counter {
         position: absolute;
         top: -5px;
@@ -116,7 +116,7 @@ def get_products():
 
 products = get_products()
 
-# Λίστα με URLs εικόνων από GitHub (raw links)
+# Image URLs from GitHub (using raw links)
 image_links = {
     "Eco Backpack": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/eco.bacpac-min.png",
     "Reusable Water Bottle": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/water.bottle-min.png",
@@ -143,7 +143,7 @@ def get_cycle(current_dt):
 
 def get_current_scheduled_time(current_dt):
     """
-    Στρογγυλοποιεί το χρόνο που έχει περάσει από την έναρξη του κύκλου στο πλησιέστερο UPDATE_INTERVAL.
+    Στρογγυλοποιεί το χρόνο από την έναρξη του κύκλου στο πλησιέστερο UPDATE_INTERVAL.
     Δηλαδή, ορίζει έναν κοινό χρόνο υπολογισμού για όλους τους χρήστες.
     """
     cycle_start, _ = get_cycle(current_dt)
@@ -168,7 +168,7 @@ def calculate_price(product, scheduled_time):
     
     $$ f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}} $$
     
-    Χρησιμοποιεί τον κοινό χρόνο υπολογισμού.
+    Η τιμή υπολογίζεται με βάση τον κοινό χρόνο.
     """
     cycle_start, cycle_end = get_cycle(scheduled_time)
     total_duration = (cycle_end - cycle_start).total_seconds()
@@ -178,22 +178,29 @@ def calculate_price(product, scheduled_time):
     return price
 
 # ---------------------
-# Sidebar Navigation: Demo, Console, Cart
+# Page Selection via Query Parameter or Sidebar
 # ---------------------
-page = st.sidebar.selectbox("Select Page", options=["Demo", "Console", "Cart"])
+query_params = st.experimental_get_query_params()
+if "page" in query_params:
+    page = query_params["page"][0]
+else:
+    page = st.sidebar.selectbox("Select Page", options=["Demo", "Console", "Cart"])
+
 tz = pytz.timezone("Europe/Athens")
 now = datetime.datetime.now(tz)
 scheduled_time = get_global_scheduled_time()
 
 # ---------------------
-# Floating Cart Icon (Top-Right)
+# Floating Cart Icon (top-right) - using an anchor tag to redirect
 # ---------------------
 cart_count = len(st.session_state.cart)
 cart_icon_html = f"""
-<div class="floating-cart" onclick="window.location.href='/?page=Cart'">
+<a href="?page=Cart" style="text-decoration:none;">
+<div class="floating-cart">
     🛒
     <div class="cart-counter">{cart_count}</div>
 </div>
+</a>
 """
 st.markdown(cart_icon_html, unsafe_allow_html=True)
 
@@ -219,7 +226,7 @@ if page == "Demo":
         with cols[idx % 2]:
             st.markdown('<div class="product-card">', unsafe_allow_html=True)
             
-            # Εμφάνιση εικόνας μέσω HTML ώστε να μην εμφανίζονται white headers
+            # Εμφάνιση εικόνας μέσω HTML (χωρίς white headers)
             image_url = image_links.get(product["name"], "https://via.placeholder.com/300x200.png")
             st.markdown(f'<img src="{image_url}" class="product-img">', unsafe_allow_html=True)
             
@@ -230,21 +237,7 @@ if page == "Demo":
             
             button_key = f"buy_{product['name']}_{idx}_{scheduled_time.strftime('%H%M%S')}"
             if st.button("Buy Now", key=button_key):
-                # Προσθήκη προϊόντος στο cart (χωρίς success μήνυμα)
                 st.session_state.cart.append(product)
-                # Αν είναι τα Eco Sunglasses, παίζει ο ήχος MP3
-                if product["name"] == "Eco Sunglasses":
-                    mp3_url = ("https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/"
-                               "TRANNOS%20Feat%20ATC%20Taff%20-%20MAURO%20GYALI%20(Official%20Music%20Video)%20-"
-                               "Trapsion%20Entertainment%20(youtube)%20(mp3cut.net).mp3")
-                    st.markdown(
-                        f"""
-                        <audio autoplay>
-                          <source src="{mp3_url}" type="audio/mpeg">
-                          Your browser does not support the audio element.
-                        </audio>
-                        """, unsafe_allow_html=True
-                    )
             st.markdown("</div>", unsafe_allow_html=True)
 
 # ---------------------
@@ -311,9 +304,15 @@ elif page == "Cart":
     st.title("Your Shopping Cart")
     if st.session_state.cart:
         st.markdown("### Items in your Cart:")
-        cart_df = pd.DataFrame(st.session_state.cart)
+        # Επαναυπολογισμός της τρέχουσας τιμής για κάθε προϊόν στο καλάθι
+        updated_cart = []
+        for item in st.session_state.cart:
+            updated_item = item.copy()
+            updated_item["current_price"] = calculate_price(item, get_global_scheduled_time())
+            updated_cart.append(updated_item)
+        cart_df = pd.DataFrame(updated_cart)
         st.dataframe(cart_df, use_container_width=True)
-        total = sum(item["start_price"] for item in st.session_state.cart)
+        total = sum(item["current_price"] for item in updated_cart)
         st.markdown(f"**Total:** €{total:.2f}")
         st.markdown("Thank you for shopping with us!")
     else:
