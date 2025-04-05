@@ -16,7 +16,7 @@ import time
 # Set page configuration with a plant emoji favicon.
 st.set_page_config(page_title="Eco Store", page_icon="🌱", layout="wide")
 
-# Initialize session_state for the cart if not already present.
+# Initialize session_state for the cart, if not already present.
 if "cart" not in st.session_state:
     st.session_state.cart = []  # list of products in the cart
 
@@ -65,7 +65,7 @@ st.markdown(
     /* Floating cart icon styling (top-right) */
     .floating-cart {
         position: fixed;
-        top: 80px;
+        top: 20px;
         right: 20px;
         background-color: #66BB6A;
         color: #ffffff;
@@ -188,7 +188,7 @@ def calculate_price(product, scheduled_time):
 # ---------------------
 # Page Selection via Query Parameter or Sidebar
 # ---------------------
-query_params = st.experimental_get_query_params()
+query_params = st.query_params()  # Replaced st.experimental_get_query_params with st.query_params
 if "page" in query_params:
     page = query_params["page"][0]
 else:
@@ -213,146 +213,127 @@ cart_icon_html = f"""
 st.markdown(cart_icon_html, unsafe_allow_html=True)
 
 # ---------------------
-# Demo Page: Real Store (with constant update every 5 sec)
+# Demo Page: Real Store
 # ---------------------
 if page == "Demo":
-    # Constant loop for updating (like before)
-    store_placeholder = st.empty()
-    while True:
-        now = datetime.datetime.now(tz)
-        scheduled_time = get_global_scheduled_time()
-        
-        with store_placeholder.container():
-            st.markdown(
-                f"""
-                <div class="time-info">
-                    <strong>Current Greek Time:</strong> {now.strftime('%H:%M:%S')}<br>
-                    <strong>Sale Price Calculation Time:</strong> {scheduled_time.strftime('%H:%M:%S')}
-                </div>
-                """, unsafe_allow_html=True
-            )
-            st.markdown("<hr>", unsafe_allow_html=True)
-            st.header("Featured Products")
+    st.title("Welcome to Eco Store")
+    
+    st.markdown(
+        f"""
+        <div class="time-info">
+            <strong>Current Greek Time:</strong> {now.strftime('%H:%M:%S')}<br>
+            <strong>Sale Price Calculation Time:</strong> {scheduled_time.strftime('%H:%M:%S')}
+        </div>
+        """, unsafe_allow_html=True
+    )
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.header("Featured Products")
+    
+    cols = st.columns(2)
+    for idx, product in enumerate(products):
+        with cols[idx % 2]:
+            st.markdown('<div class="product-card">', unsafe_allow_html=True)
             
-            cols = st.columns(2)
-            for idx, product in enumerate(products):
-                with cols[idx % 2]:
-                    st.markdown('<div class="product-card">', unsafe_allow_html=True)
-                    
-                    # Display image using HTML to avoid white headers.
-                    image_url = image_links.get(product["name"], "https://via.placeholder.com/300x200.png")
-                    st.markdown(f'<img src="{image_url}" class="product-img">', unsafe_allow_html=True)
-                    
-                    st.markdown(f"<h3>{product['name']}</h3>", unsafe_allow_html=True)
-                    price = calculate_price(product, scheduled_time)
-                    st.markdown(f"<h4>Sale Price: €{price:.4f}</h4>", unsafe_allow_html=True)
-                    st.write("High-quality, sustainable, and ethically produced.")
-                    
-                    button_key = f"buy_{product['name']}_{idx}_{scheduled_time.strftime('%H%M%S')}"
-                    if st.button("Buy Now", key=button_key):
-                        st.session_state.cart.append(product)
-                        # Display a brief thank-you message (optional, you can remove if you want it only on the Cart page)
-                        st.success(f"Thank you for purchasing the {product['name']}!")
-                        # If product is Eco Sunglasses, play MP3 sound.
-                        if product["name"] == "Eco Sunglasses":
-                            mp3_url = ("https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/"
-                                       "TRANNOS%20Feat%20ATC%20Taff%20-%20MAURO%20GYALI%20(Official%20Music%20Video)%20-"
-                                       "Trapsion%20Entertainment%20(youtube)%20(mp3cut.net).mp3")
-                            st.markdown(
-                                f"""
-                                <audio autoplay>
-                                  <source src="{mp3_url}" type="audio/mpeg">
-                                  Your browser does not support the audio element.
-                                </audio>
-                                """, unsafe_allow_html=True
-                            )
-                    st.markdown("</div>", unsafe_allow_html=True)
-        time.sleep(UPDATE_INTERVAL)
-        store_placeholder.empty()
+            # Display image via HTML to avoid white headers.
+            image_url = image_links.get(product["name"], "https://via.placeholder.com/300x200.png")
+            st.markdown(f'<img src="{image_url}" class="product-img">', unsafe_allow_html=True)
+            
+            st.markdown(f"<h3>{product['name']}</h3>", unsafe_allow_html=True)
+            price = calculate_price(product, scheduled_time)
+            st.markdown(f"<h4>Sale Price: €{price:.4f}</h4>", unsafe_allow_html=True)
+            st.write("High-quality, sustainable, and ethically produced.")
+            
+            button_key = f"buy_{product['name']}_{idx}_{scheduled_time.strftime('%H%M%S')}"
+            if st.button("Buy Now", key=button_key):
+                st.session_state.cart.append(product)
+                st.success(f"Thank you for purchasing the {product['name']}!")
+                if product["name"] == "Eco Sunglasses":
+                    mp3_url = ("https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/"
+                               "TRANNOS%20Feat%20ATC%20Taff%20-%20MAURO%20GYALI%20(Official%20Music%20Video)%20-"
+                               "Trapsion%20Entertainment%20(youtube)%20(mp3cut.net).mp3")
+                    st.markdown(
+                        f"""
+                        <audio autoplay>
+                          <source src="{mp3_url}" type="audio/mpeg">
+                          Your browser does not support the audio element.
+                        </audio>
+                        """, unsafe_allow_html=True
+                    )
+            st.markdown("</div>", unsafe_allow_html=True)
 
 # ---------------------
 # Console Page: Detailed Analytics & Full Price History
 # ---------------------
 elif page == "Console":
-    console_placeholder = st.empty()
-    while True:
-        now = datetime.datetime.now(tz)
-        cycle_start, cycle_end = get_cycle(now)
-        total_duration = (cycle_end - cycle_start).total_seconds()
-        scheduled_time = get_global_scheduled_time()
-        elapsed_time = (scheduled_time - cycle_start).total_seconds()
+    st.title("Console: Detailed Analytics & Full Price History")
+    
+    st.latex(
+        r"f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}}"
+    )
+    
+    cycle_start, cycle_end = get_cycle(now)
+    total_duration = (cycle_end - cycle_start).total_seconds()
+    elapsed_time = (scheduled_time - cycle_start).total_seconds()
+    
+    st.markdown(
+        f"""
+        **Cycle Details:**
         
-        with console_placeholder.container():
-            st.title("Console: Detailed Analytics & Full Price History")
-            st.latex(
-                r"f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}}"
-            )
-            st.markdown(
-                f"""
-                **Cycle Details:**
-                
-                - **Cycle Start (tₛ):** {cycle_start.strftime("%H:%M:%S")}
-                - **Cycle End (tₑ):** {cycle_end.strftime("%H:%M:%S")}
-                - **Scheduled Calculation Time (t):** {scheduled_time.strftime("%H:%M:%S")}
-                - **Elapsed Time:** {elapsed_time:.8f} seconds
-                - **Total Duration:** {total_duration:.8f} seconds
-                """
-            )
-            
-            schedule = []
-            current_time = cycle_start
-            while current_time <= scheduled_time:
-                row = {"Time": current_time.strftime("%H:%M:%S")}
-                for product in products:
-                    delta = (current_time - cycle_start).total_seconds()
-                    fraction = delta / total_duration
-                    price = product["start_price"] + (product["end_price"] - product["start_price"]) * fraction
-                    row[product["name"]] = f"{price:.4f} €"
-                schedule.append(row)
-                current_time += datetime.timedelta(seconds=UPDATE_INTERVAL)
-            
-            df = pd.DataFrame(schedule)
-            if not df.empty:
-                if len(df) > 100:
-                    st.markdown("### First 100 Entries")
-                    st.dataframe(df.head(100), use_container_width=True)
-                    st.markdown("### Last 100 Entries")
-                    st.dataframe(df.tail(100), use_container_width=True)
-                else:
-                    st.dataframe(df, use_container_width=True)
-            
-            csv = df.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="Download Full Price History",
-                data=csv,
-                file_name="price_history.csv",
-                mime="text/csv",
-                key=f"download_{int(time.time())}"
-            )
-        time.sleep(UPDATE_INTERVAL)
-        console_placeholder.empty()
+        - **Cycle Start (tₛ):** {cycle_start.strftime("%H:%M:%S")}
+        - **Cycle End (tₑ):** {cycle_end.strftime("%H:%M:%S")}
+        - **Scheduled Calculation Time (t):** {scheduled_time.strftime("%H:%M:%S")}
+        - **Elapsed Time:** {elapsed_time:.8f} seconds
+        - **Total Duration:** {total_duration:.8f} seconds
+        """
+    )
+    
+    schedule = []
+    current_time = cycle_start
+    while current_time <= scheduled_time:
+        row = {"Time": current_time.strftime("%H:%M:%S")}
+        for product in products:
+            delta = (current_time - cycle_start).total_seconds()
+            fraction = delta / total_duration
+            price = product["start_price"] + (product["end_price"] - product["start_price"]) * fraction
+            row[product["name"]] = f"{price:.4f} €"
+        schedule.append(row)
+        current_time += datetime.timedelta(seconds=UPDATE_INTERVAL)
+    
+    df = pd.DataFrame(schedule)
+    if not df.empty:
+        if len(df) > 100:
+            st.markdown("### First 100 Entries")
+            st.dataframe(df.head(100), use_container_width=True)
+            st.markdown("### Last 100 Entries")
+            st.dataframe(df.tail(100), use_container_width=True)
+        else:
+            st.dataframe(df, use_container_width=True)
+    
+    csv = df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="Download Full Price History",
+        data=csv,
+        file_name="price_history.csv",
+        mime="text/csv",
+        key=f"download_{int(time.time())}"
+    )
 
 # ---------------------
-# Cart Page: Nice Looking Cart (updated every 5 seconds)
+# Cart Page: Nice Looking Cart
 # ---------------------
 elif page == "Cart":
-    cart_placeholder = st.empty()
-    while True:
-        st.title("Your Shopping Cart")
-        if st.session_state.cart:
-            st.markdown("### Items in your Cart:")
-            updated_cart = []
-            # Επαναυπολογισμός της τρέχουσας τιμής για κάθε προϊόν στο cart
-            for item in st.session_state.cart:
-                updated_item = item.copy()
-                updated_item["current_price"] = calculate_price(item, get_global_scheduled_time())
-                updated_cart.append(updated_item)
-            cart_df = pd.DataFrame(updated_cart)
-            st.dataframe(cart_df, use_container_width=True)
-            total = sum(item["current_price"] for item in updated_cart)
-            st.markdown(f"**Total:** €{total:.2f}")
-            st.markdown("Thank you for shopping with us!")
-        else:
-            st.info("Your cart is empty.")
-        time.sleep(UPDATE_INTERVAL)
-        cart_placeholder.empty()
+    st.title("Your Shopping Cart")
+    if st.session_state.cart:
+        st.markdown("### Items in your Cart:")
+        updated_cart = []
+        for item in st.session_state.cart:
+            updated_item = item.copy()
+            updated_item["current_price"] = calculate_price(item, get_global_scheduled_time())
+            updated_cart.append(updated_item)
+        cart_df = pd.DataFrame(updated_cart)
+        st.dataframe(cart_df, use_container_width=True)
+        total = sum(item["current_price"] for item in updated_cart)
+        st.markdown(f"**Total:** €{total:.2f}")
+        st.markdown("Thank you for shopping with us!")
+    else:
+        st.info("Your cart is empty.")
