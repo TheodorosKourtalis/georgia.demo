@@ -2,3 +2,4 @@ streamlit
 pandas
 pytz
 streamlit-extras
+streamlit-autorefresh
