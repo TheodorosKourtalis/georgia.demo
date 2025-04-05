@@ -9,39 +9,39 @@ import time
 # Set page configuration with a plant emoji favicon.
 st.set_page_config(page_title="Eco Store", page_icon="🌱", layout="wide")
 
-# Inject custom CSS with transitions to soften background changes.
+# Inject custom CSS with reduced margins/padding for product cards.
 st.markdown(
     """
     <style>
-    /* Overall background with a soft green gradient and smooth transition */
+    /* Overall background with a soft green gradient */
     .stApp {
         background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
         transition: background-color 0.5s ease;
     }
-    /* Headers and paragraphs styling */
+    /* Headers & paragraphs styling */
     h1, h2, h3, h4, h5, h6, p {
         color: #2E7D32;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    /* Product card styling */
+    /* Reduced product card styling: smaller margins and padding */
     .product-card {
         background-color: #ffffff;
-        padding: 0.5rem 1rem;
-        margin: 0.5rem;
-        border-radius: 10px;
-        box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.15);
+        padding: 0.2rem 0.5rem; /* μειωμένο padding */
+        margin: 0.2rem;         /* μειωμένο margin */
+        border-radius: 8px;      /* λίγο μικρότερος radius */
+        box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.1); /* ελαφρύτερη σκιά */
         text-align: center;
     }
     .product-card h3, .product-card h4 {
         margin-top: 0;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.2rem;
     }
     /* Image styling without extra white margins */
     .product-img {
         width: 100%;
-        border-radius: 10px;
+        border-radius: 8px;
         margin-top: 0;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.2rem;
         display: block;
     }
     /* Button styling */
@@ -65,9 +65,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# ---------------------
-# Auto-refresh: Background thread calling st.experimental_rerun every 5 seconds.
-# ---------------------
+# Auto-refresh using a background thread calling st.experimental_rerun every 5 seconds.
 UPDATE_INTERVAL = 5  # seconds
 
 def auto_rerun():
@@ -78,9 +76,7 @@ if 'auto_rerun_started' not in st.session_state:
     st.session_state.auto_rerun_started = True
     threading.Thread(target=auto_rerun, daemon=True).start()
 
-# ---------------------
-# Global Product Data (cached)
-# ---------------------
+# --- Global Product Data (cached) ---
 @st.cache_resource
 def get_products():
     return [
@@ -108,9 +104,7 @@ def get_products():
 
 products = get_products()
 
-# ---------------------
-# Image URLs (raw links from GitHub)
-# ---------------------
+# Image URLs from GitHub (raw links)
 image_links = {
     "Eco Backpack": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/eco.bacpac-min.png",
     "Reusable Water Bottle": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/water.bottle-min.png",
@@ -118,9 +112,6 @@ image_links = {
     "Eco Sunglasses": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/trannos.west.png"
 }
 
-# ---------------------
-# Pricing Functions
-# ---------------------
 def get_cycle(current_dt):
     """
     Ορίζει τον ενεργό κύκλο τιμολόγησης.
@@ -165,7 +156,7 @@ def calculate_price(product, scheduled_time):
     
     $$ f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}} $$
     
-    Η τιμή υπολογίζεται με βάση τον κοινό χρόνο υπολογισμού.
+    Η τιμή υπολογίζεται με βάση τον κοινό χρόνο.
     """
     cycle_start, cycle_end = get_cycle(scheduled_time)
     total_duration = (cycle_end - cycle_start).total_seconds()
@@ -174,21 +165,15 @@ def calculate_price(product, scheduled_time):
     price = product["start_price"] + (product["end_price"] - product["start_price"]) * fraction
     return price
 
-# ---------------------
-# Sidebar: Επιλογή σελίδας (Demo και Console)
-# ---------------------
+# --- Sidebar: Επιλογή σελίδας (Demo & Console) ---
 page = st.sidebar.selectbox("Select Page", options=["Demo", "Console"])
 tz = pytz.timezone("Europe/Athens")
 now = datetime.datetime.now(tz)
 scheduled_time = get_global_scheduled_time()
 
-# ---------------------
-# Demo Page: Real Store
-# ---------------------
 if page == "Demo":
     st.title("Welcome to Eco Store")
     
-    # Εμφάνιση πληροφοριών ώρας
     st.markdown(
         f"""
         <div class="time-info">
@@ -206,7 +191,7 @@ if page == "Demo":
         with cols[idx % 2]:
             st.markdown('<div class="product-card">', unsafe_allow_html=True)
             
-            # Χρήση HTML <img> για την εικόνα (χωρίς white headers)
+            # Χρήση HTML για την εικόνα χωρίς επιπλέον white headers
             image_url = image_links.get(product["name"], "https://via.placeholder.com/300x200.png")
             st.markdown(f'<img src="{image_url}" class="product-img">', unsafe_allow_html=True)
             
@@ -234,9 +219,6 @@ if page == "Demo":
                     )
             st.markdown("</div>", unsafe_allow_html=True)
 
-# ---------------------
-# Console Page: Detailed Analytics & Price History
-# ---------------------
 elif page == "Console":
     st.title("Console: Detailed Analytics & Full Price History")
     
