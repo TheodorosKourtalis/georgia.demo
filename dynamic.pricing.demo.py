@@ -57,7 +57,7 @@ st.markdown(
     /* Floating cart icon styling positioned at top-right */
     .floating-cart {
         position: fixed;
-        top: 40px;  /* από 20px σε 40px */
+        top: 60px;  /* από 20px σε 40px */
         right: 20px;
         background-color: #66BB6A;
         color: #ffffff;
