@@ -57,7 +57,7 @@ st.markdown(
     /* Floating cart icon styling positioned at top-right */
     .floating-cart {
         position: fixed;
-        top: 20px;
+        top: 40px;  /* από 20px σε 40px */
         right: 20px;
         background-color: #66BB6A;
         color: #ffffff;
@@ -68,7 +68,7 @@ st.markdown(
         cursor: pointer;
         box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.3);
         z-index: 9999;
-    }
+}
     .cart-counter {
         position: absolute;
         top: -5px;
