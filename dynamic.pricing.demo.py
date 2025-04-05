@@ -64,39 +64,13 @@ st.markdown(
         color: #2E7D32;
         margin-bottom: 1rem;
     }
-    /* Floating Cart Icon */
-    .cart-icon {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 100;
-    }
-    .cart-icon a {
-        text-decoration: none;
-        color: inherit;
-    }
-    .cart-icon .icon {
-        position: relative;
-        font-size: 2rem;
-    }
-    .cart-icon .badge {
-        position: absolute;
-        top: -10px;
-        right: -10px;
-        background: red;
-        color: white;
-        border-radius: 50%;
-        padding: 2px 6px;
-        font-size: 0.8rem;
-    }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# Initialize session state for cart if not already set.
-if 'cart_items' not in st.session_state:
-    st.session_state['cart_items'] = []
+# Update interval (seconds)
+UPDATE_INTERVAL = 5
 
 # --- Global Product Data (cached) ---
 @st.cache_resource
@@ -126,7 +100,7 @@ def get_products():
 
 products = get_products()
 
-# List of image URLs from GitHub (replace with your own URLs using raw links)
+# Λίστα με URLs εικόνων από GitHub (αντικαταστήστε τα URLs με τα δικά σας, χρησιμοποιώντας raw links)
 image_links = {
     "Eco Backpack": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/eco.bacpac-min.png",
     "Reusable Water Bottle": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/water.bottle-min.png",
@@ -134,14 +108,11 @@ image_links = {
     "Eco Sunglasses": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/trannos.west.png"
 }
 
-# Update interval in seconds
-UPDATE_INTERVAL = 5
-
 def get_cycle(current_dt):
     """
-    Defines the active pricing cycle.
-    The cycle starts at 05:00 (Europe/Athens) and lasts for 22 hours.
-    If the current time is before 05:00, the cycle started yesterday at 05:00.
+    Ορίζει τον ενεργό κύκλο τιμολόγησης.
+    Ο κύκλος ξεκινάει στις 05:00 (Europe/Athens) και διαρκεί 22 ώρες.
+    Αν η τρέχουσα ώρα είναι πριν τις 05:00, ο κύκλος ξεκινάει χθες στις 05:00.
     """
     tz = pytz.timezone("Europe/Athens")
     current_dt = current_dt.astimezone(tz)
@@ -156,8 +127,8 @@ def get_cycle(current_dt):
 
 def get_current_scheduled_time(current_dt):
     """
-    Rounds the time elapsed since the cycle start to the nearest UPDATE_INTERVAL.
-    This creates a common calculation time for all users.
+    Στρογγυλοποιεί το χρόνο που έχει περάσει από την έναρξη του κύκλου στο πλησιέστερο UPDATE_INTERVAL.
+    Δηλαδή, ορίζει έναν κοινό χρόνο υπολογισμού για όλους τους χρήστες.
     """
     cycle_start, _ = get_cycle(current_dt)
     delta = (current_dt - cycle_start).total_seconds()
@@ -168,8 +139,8 @@ def get_current_scheduled_time(current_dt):
 @st.cache_data(ttl=UPDATE_INTERVAL)
 def get_global_scheduled_time():
     """
-    Returns the global common calculation time (rounded to the nearest UPDATE_INTERVAL)
-    so that all users see the same value.
+    Επιστρέφει τον παγκόσμιο κοινό χρόνο υπολογισμού (πλησιέστερος στο UPDATE_INTERVAL)
+    ώστε όλοι οι χρήστες να βλέπουν την ίδια τιμή.
     """
     tz = pytz.timezone("Europe/Athens")
     now = datetime.datetime.now(tz)
@@ -177,11 +148,11 @@ def get_global_scheduled_time():
 
 def calculate_price(product, scheduled_time):
     """
-    Calculates the price using linear interpolation based on the common time:
+    Υπολογίζει την τιμή χρησιμοποιώντας γραμμική παρεμβολή με βάση το κοινό χρόνο:
     
     $$ f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}} $$
     
-    Uses the common calculation time.
+    Χρησιμοποιεί τον κοινό χρόνο υπολογισμού.
     """
     cycle_start, cycle_end = get_cycle(scheduled_time)
     total_duration = (cycle_end - cycle_start).total_seconds()
@@ -190,118 +161,83 @@ def calculate_price(product, scheduled_time):
     price = product["start_price"] + (product["end_price"] - product["start_price"]) * fraction
     return price
 
-# --- Auto-refresh setup ---
-# This auto-refreshes the page every UPDATE_INTERVAL seconds.
-st.experimental_autorefresh(interval=UPDATE_INTERVAL * 1000, limit=0, key="autorefresh")
+# --- Sidebar Navigation για Demo & Console Σελίδες ---
+page = st.sidebar.selectbox("Select Page", options=["Demo", "Console"])
+tz = pytz.timezone("Europe/Athens")
 
-# Determine current page: if query parameter 'page' is set to 'Cart', use that; otherwise use the sidebar.
-query_params = st.query_params
-if "page" in query_params and query_params["page"][0] == "Cart":
-    current_page = "Cart"
-else:
-    current_page = st.sidebar.selectbox("Select Page", options=["Demo", "Console"])
-
-# Function to render the floating cart icon.
-def render_cart_icon():
-    cart_count = len(st.session_state['cart_items'])
-    cart_icon_html = f"""
-    <div class="cart-icon">
-      <a href="/?page=Cart">
-        <div class="icon">
-          🛒
-          <span class="badge">{cart_count}</span>
-        </div>
-      </a>
-    </div>
-    """
-    st.markdown(cart_icon_html, unsafe_allow_html=True)
-
-# --- Page Rendering ---
-
-if current_page == "Cart":
-    st.title("Your Shopping Cart")
-    st.markdown("<hr>", unsafe_allow_html=True)
-    
-    if st.session_state['cart_items']:
-        st.subheader("Items in your cart:")
-        for i, item in enumerate(st.session_state['cart_items'], start=1):
-            st.markdown(f"**{i}. {item}**")
-    else:
-        st.write("Your cart is empty!")
-    
-    if st.button("Continue Shopping"):
-        # Reset the URL query parameter to return to Demo page.
-        st.experimental_set_query_params(page="Demo")
-        st.rerun()
-    
-    # Also show the floating cart icon (optional on Cart page)
-    render_cart_icon()
-
-elif current_page == "Demo":
+if page == "Demo":
     st.title("Welcome to Eco Store")
-    tz = pytz.timezone("Europe/Athens")
-    now = datetime.datetime.now(tz)
-    scheduled_time = get_global_scheduled_time()
+    store_placeholder = st.empty()
     
-    st.markdown(
-        f"""
-        <div class="time-info">
-            <strong>Current Greek Time:</strong> {now.strftime('%H:%M:%S')}<br>
-            <strong>Sale Price Calculation Time:</strong> {scheduled_time.strftime('%H:%M:%S')}
-        </div>
-        """, unsafe_allow_html=True
-    )
-    st.markdown("<hr>", unsafe_allow_html=True)
-    
-    st.header("Featured Products")
-    # Display products in 2 columns
-    cols = st.columns(2)
-    for idx, product in enumerate(products):
-        with cols[idx % 2]:
-            st.markdown('<div class="product-card">', unsafe_allow_html=True)
+    while True:
+        now = datetime.datetime.now(tz)
+        scheduled_time = get_global_scheduled_time()
+        
+        with store_placeholder.container():
+            st.markdown(
+                f"""
+                <div class="time-info">
+                    <strong>Current Greek Time:</strong> {now.strftime('%H:%M:%S')}<br>
+                    <strong>Sale Price Calculation Time:</strong> {scheduled_time.strftime('%H:%M:%S')}
+                </div>
+                """, unsafe_allow_html=True
+            )
+            st.markdown("<hr>", unsafe_allow_html=True)
             
-            # Display product image
-            image_url = image_links.get(product["name"], "https://via.placeholder.com/300x200.png")
-            st.image(image_url, use_container_width=True)
-            
-            st.markdown(f"<h3>{product['name']}</h3>", unsafe_allow_html=True)
-            price = calculate_price(product, scheduled_time)
-            st.markdown(f"<h4>Sale Price: €{price:.4f}</h4>", unsafe_allow_html=True)
-            st.write("High-quality, sustainable, and ethically produced.")
-            
-            # Unique key for each Buy Now button.
-            button_key = f"buy_{product['name']}_{idx}_{scheduled_time.strftime('%H%M%S')}"
-            if st.button("Buy Now", key=button_key):
-                st.success(f"Thank you for purchasing the {product['name']}!")
-                st.session_state.cart_items.append(product['name'])
-                # Special audio for Eco Sunglasses.
-                if product["name"] == "Eco Sunglasses":
-                    mp3_url = "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/TRANNOS%20Feat%20ATC%20Taff%20-%20MAURO%20GYALI%20(Official%20Music%20Video)%20-%20Trapsion%20Entertainment%20(youtube)%20(mp3cut.net).mp3"
-                    st.markdown(f"""
-                    <audio autoplay>
-                      <source src="{mp3_url}" type="audio/mpeg">
-                      Your browser does not support the audio element.
-                    </audio>
-                    """, unsafe_allow_html=True)
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Render the floating cart icon in Demo view.
-    render_cart_icon()
+            st.header("Featured Products")
+            # Διάταξη προϊόντων σε 2 στήλες
+            cols = st.columns(2)
+            for idx, product in enumerate(products):
+                with cols[idx % 2]:
+                    st.markdown('<div class="product-card">', unsafe_allow_html=True)
+                    
+                    # Εμφάνιση εικόνας από GitHub
+                    image_url = image_links.get(product["name"], "https://via.placeholder.com/300x200.png")
+                    st.image(image_url, use_container_width=True)
+                    
+                    st.markdown(f"<h3>{product['name']}</h3>", unsafe_allow_html=True)
+                    price = calculate_price(product, scheduled_time)
+                    st.markdown(f"<h4>Sale Price: €{price:.4f}</h4>", unsafe_allow_html=True)
+                    st.write("High-quality, sustainable, and ethically produced.")
+                    
+                    # Δημιουργία μοναδικού key για το κουμπί "Buy Now"
+                    button_key = f"buy_{product['name']}_{idx}_{scheduled_time.strftime('%H%M%S')}"
+                    if st.button("Buy Now", key=button_key):
+                        st.success(f"Thank you for purchasing the {product['name']}!")
+                        # Αν είναι τα γυαλιά, παίζει ο ήχος
+                        if product["name"] == "Eco Sunglasses":
+                            mp3_url = "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/TRANNOS%20Feat%20ATC%20Taff%20-%20MAURO%20GYALI%20(Official%20Music%20Video)%20-%20Trapsion%20Entertainment%20(youtube)%20(mp3cut.net).mp3"
+                            st.markdown(f"""
+                            <audio autoplay>
+                              <source src="{mp3_url}" type="audio/mpeg">
+                              Your browser does not support the audio element.
+                            </audio>
+                            """, unsafe_allow_html=True)
+                    
+                    st.markdown("</div>", unsafe_allow_html=True)
+        
+        time.sleep(UPDATE_INTERVAL)
+        store_placeholder.empty()
 
-elif current_page == "Console":
+elif page == "Console":
     st.title("Console: Detailed Analytics & Full Price History")
-    tz = pytz.timezone("Europe/Athens")
-    now = datetime.datetime.now(tz)
-    cycle_start, cycle_end = get_cycle(now)
-    total_duration = (cycle_end - cycle_start).total_seconds()
-    scheduled_time = get_global_scheduled_time()
-    elapsed_time = (scheduled_time - cycle_start).total_seconds()
     
-    st.latex(
-        r"f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}}"
-    )
-    details = f"""
+    latex_placeholder = st.empty()
+    details_placeholder = st.empty()
+    table_placeholder = st.empty()
+    download_placeholder = st.empty()
+    
+    while True:
+        now = datetime.datetime.now(tz)
+        cycle_start, cycle_end = get_cycle(now)
+        total_duration = (cycle_end - cycle_start).total_seconds()
+        scheduled_time = get_global_scheduled_time()
+        elapsed_time = (scheduled_time - cycle_start).total_seconds()
+        
+        latex_placeholder.latex(
+            r"f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}}"
+        )
+        details = f"""
 **Cycle Details:**
 
 - **Cycle Start (tₛ):** {cycle_start.strftime("%H:%M:%S")}
@@ -309,40 +245,43 @@ elif current_page == "Console":
 - **Scheduled Calculation Time (t):** {scheduled_time.strftime("%H:%M:%S")}
 - **Elapsed Time:** {elapsed_time:.8f} seconds
 - **Total Duration:** {total_duration:.8f} seconds
-    """
-    st.markdown(details)
-    
-    # Create a table with price history (step = UPDATE_INTERVAL)
-    schedule = []
-    current_time = cycle_start
-    while current_time <= scheduled_time:
-        row = {"Time": current_time.strftime("%H:%M:%S")}
-        for product in products:
-            delta = (current_time - cycle_start).total_seconds()
-            fraction = delta / total_duration
-            price = product["start_price"] + (product["end_price"] - product["start_price"]) * fraction
-            row[product["name"]] = f"{price:.4f} €"
-        schedule.append(row)
-        current_time += datetime.timedelta(seconds=UPDATE_INTERVAL)
-    
-    df = pd.DataFrame(schedule)
-    if not df.empty:
-        if len(df) > 100:
-            st.markdown("### First 100 Entries")
-            st.dataframe(df.head(100), use_container_width=True)
-            st.markdown("### Last 100 Entries")
-            st.dataframe(df.tail(100), use_container_width=True)
-        else:
-            st.dataframe(df, use_container_width=True)
-    
-    csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="Download Full Price History",
-        data=csv,
-        file_name="price_history.csv",
-        mime="text/csv",
-        key=f"download_{int(time.time())}"
-    )
-    
-    # Render the floating cart icon in Console view.
-    render_cart_icon()
+        """
+        details_placeholder.markdown(details)
+        
+        # Δημιουργία πίνακα ιστορικού τιμών (βήμα UPDATE_INTERVAL)
+        schedule = []
+        current_time = cycle_start
+        while current_time <= scheduled_time:
+            row = {"Time": current_time.strftime("%H:%M:%S")}
+            for product in products:
+                delta = (current_time - cycle_start).total_seconds()
+                fraction = delta / total_duration
+                price = product["start_price"] + (product["end_price"] - product["start_price"]) * fraction
+                row[product["name"]] = f"{price:.4f} €"
+            schedule.append(row)
+            current_time += datetime.timedelta(seconds=UPDATE_INTERVAL)
+        
+        df = pd.DataFrame(schedule)
+        if not df.empty:
+            if len(df) > 100:
+                table_placeholder.markdown("### First 100 Entries")
+                table_placeholder.dataframe(df.head(100), use_container_width=True)
+                table_placeholder.markdown("### Last 100 Entries")
+                table_placeholder.dataframe(df.tail(100), use_container_width=True)
+            else:
+                table_placeholder.dataframe(df, use_container_width=True)
+        
+        csv = df.to_csv(index=False).encode('utf-8')
+        download_placeholder.download_button(
+            label="Download Full Price History",
+            data=csv,
+            file_name="price_history.csv",
+            mime="text/csv",
+            key=f"download_{int(time.time())}"
+        )
+        
+        time.sleep(UPDATE_INTERVAL)
+        latex_placeholder.empty()
+        details_placeholder.empty()
+        table_placeholder.empty()
+        download_placeholder.empty()
