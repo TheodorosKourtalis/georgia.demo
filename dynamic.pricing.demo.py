@@ -4,27 +4,40 @@ import random
 import pandas as pd
 import pytz
 
-# --- Page configuration ---
+# Set page configuration with a plant emoji favicon.
 st.set_page_config(page_title="Eco Store", page_icon="🌱", layout="wide")
 
-# --- Auto-refresh using meta refresh ---
-# This will refresh the page every 5 seconds.
+# --- Auto-refresh με meta refresh + JavaScript για επαναφορά scroll ---
 st.markdown("<meta http-equiv='refresh' content='5'>", unsafe_allow_html=True)
+st.markdown(
+    """
+    <script>
+    // Επαναφορά θέσης scroll μετά το refresh
+    if (window.localStorage.getItem("scrollPosition")) {
+        window.scrollTo(0, window.localStorage.getItem("scrollPosition"));
+    }
+    window.addEventListener("scroll", function() {
+        window.localStorage.setItem("scrollPosition", window.scrollY);
+    });
+    </script>
+    """,
+    unsafe_allow_html=True
+)
 
-# --- Custom CSS ---
+# --- Custom CSS για να μην υπάρχουν white margins πάνω από τις εικόνες και για γενικό eco look ---
 st.markdown(
     """
     <style>
-    /* Overall background with a soft green gradient */
+    /* Background με ελαφρύ green gradient */
     .stApp {
         background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
     }
-    /* Header styling */
+    /* Styling για headers και κείμενα */
     h1, h2, h3, h4, h5, h6, p {
         color: #2E7D32;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    /* Product card styling */
+    /* Κάρτες προϊόντων */
     .product-card {
         background-color: #ffffff;
         padding: 0.5rem 1rem;
@@ -33,14 +46,15 @@ st.markdown(
         box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.15);
         text-align: center;
     }
-    /* Styling for the product image so that no extra margins appear */
+    /* Εικόνες προϊόντων χωρίς επιπλέον margins */
     .product-img {
         width: 100%;
         border-radius: 10px;
+        margin-top: 0;
         margin-bottom: 0.5rem;
         display: block;
     }
-    /* Button styling */
+    /* Κουμπιά */
     .stButton>button {
         background-color: #66BB6A;
         color: #ffffff;
@@ -49,20 +63,25 @@ st.markdown(
         padding: 8px 16px;
         font-weight: bold;
     }
-    /* Time info styling */
+    /* Πληροφορίες ώρας */
     .time-info {
         text-align: center;
         font-size: 1rem;
         color: #2E7D32;
         margin-bottom: 1rem;
     }
+    /* Μείωση περιθωρίων για h3 και h4 μέσα στις κάρτες */
+    .product-card h3, .product-card h4 {
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+    }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# --- Constants ---
-UPDATE_INTERVAL = 5  # seconds
+# --- Ορισμός update interval ---
+UPDATE_INTERVAL = 5  # δευτερόλεπτα
 
 # --- Global Product Data (cached) ---
 @st.cache_resource
@@ -92,7 +111,7 @@ def get_products():
 
 products = get_products()
 
-# --- Image URLs from GitHub (use raw links) ---
+# --- Image URLs από GitHub (raw links) ---
 image_links = {
     "Eco Backpack": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/eco.bacpac-min.png",
     "Reusable Water Bottle": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/water.bottle-min.png",
@@ -100,11 +119,11 @@ image_links = {
     "Eco Sunglasses": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/trannos.west.png"
 }
 
-# --- Pricing Functions ---
+# --- Λειτουργίες τιμολόγησης ---
 def get_cycle(current_dt):
     """
     Ορίζει τον ενεργό κύκλο τιμολόγησης.
-    Ο κύκλος ξεκινάει στις 05:00 (Europe/Athens) και διαρκεί 22 ώρες.
+    Ξεκινάει στις 05:00 (Europe/Athens) και διαρκεί 22 ώρες.
     Αν η τρέχουσα ώρα είναι πριν τις 05:00, ο κύκλος ξεκινάει χθες στις 05:00.
     """
     tz = pytz.timezone("Europe/Athens")
@@ -120,8 +139,7 @@ def get_cycle(current_dt):
 
 def get_current_scheduled_time(current_dt):
     """
-    Στρογγυλοποιεί το χρόνο που έχει περάσει από την έναρξη του κύκλου στο πλησιέστερο UPDATE_INTERVAL.
-    Δηλαδή, ορίζει έναν κοινό χρόνο υπολογισμού για όλους τους χρήστες.
+    Στρογγυλοποιεί το χρόνο από την έναρξη του κύκλου στο πλησιέστερο UPDATE_INTERVAL.
     """
     cycle_start, _ = get_cycle(current_dt)
     delta = (current_dt - cycle_start).total_seconds()
@@ -141,11 +159,11 @@ def get_global_scheduled_time():
 
 def calculate_price(product, scheduled_time):
     """
-    Υπολογίζει την τιμή χρησιμοποιώντας γραμμική παρεμβολή με βάση τον κοινό χρόνο:
+    Υπολογίζει την τιμή χρησιμοποιώντας γραμμική παρεμβολή:
     
     $$ f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}} $$
     
-    Η τιμή υπολογίζεται με βάση τον κοινό χρόνο υπολογισμού.
+    Χρησιμοποιεί τον κοινό χρόνο υπολογισμού.
     """
     cycle_start, cycle_end = get_cycle(scheduled_time)
     total_duration = (cycle_end - cycle_start).total_seconds()
@@ -154,14 +172,13 @@ def calculate_price(product, scheduled_time):
     price = product["start_price"] + (product["end_price"] - product["start_price"]) * fraction
     return price
 
-# --- Sidebar για επιλογή σελίδας (Demo και Console) ---
+# --- Sidebar: Επιλογή σελίδας (Demo & Console) ---
 page = st.sidebar.selectbox("Select Page", options=["Demo", "Console"])
 tz = pytz.timezone("Europe/Athens")
 
 if page == "Demo":
     st.title("Welcome to Eco Store")
     
-    # Λήψη τρέχουσας ώρας και κοινού χρόνου υπολογισμού
     now = datetime.datetime.now(tz)
     scheduled_time = get_global_scheduled_time()
     
@@ -175,7 +192,6 @@ if page == "Demo":
         """, unsafe_allow_html=True
     )
     st.markdown("<hr>", unsafe_allow_html=True)
-    
     st.header("Featured Products")
     
     # Διάταξη προϊόντων σε 2 στήλες
@@ -184,7 +200,7 @@ if page == "Demo":
         with cols[idx % 2]:
             st.markdown('<div class="product-card">', unsafe_allow_html=True)
             
-            # Χρήση HTML για την εικόνα ώστε να μην εμφανίζονται white headers
+            # Εμφάνιση εικόνας από GitHub χωρίς white headers
             image_url = image_links.get(product["name"], "https://via.placeholder.com/300x200.png")
             st.markdown(f'<img src="{image_url}" class="product-img">', unsafe_allow_html=True)
             
@@ -193,11 +209,11 @@ if page == "Demo":
             st.markdown(f"<h4>Sale Price: €{price:.4f}</h4>", unsafe_allow_html=True)
             st.write("High-quality, sustainable, and ethically produced.")
             
-            # Δημιουργία μοναδικού key για το κουμπί Buy Now ώστε να μην υπάρχει διπλό πάτημα
+            # Δημιουργία μοναδικού key για το κουμπί Buy Now
             button_key = f"buy_{product['name']}_{idx}_{scheduled_time.strftime('%H%M%S')}"
             if st.button("Buy Now", key=button_key):
                 st.success(f"Thank you for purchasing the {product['name']}!")
-                # Αν είναι τα Eco Sunglasses, αναπαραγάγει ήχο MP3
+                # Για τα Eco Sunglasses, αναπαράγεται ο ήχος MP3
                 if product["name"] == "Eco Sunglasses":
                     mp3_url = "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/TRANNOS%20Feat%20ATC%20Taff%20-%20MAURO%20GYALI%20(Official%20Music%20Video)%20-%20Trapsion%20Entertainment%20(youtube)%20(mp3cut.net).mp3"
                     st.markdown(
@@ -213,7 +229,6 @@ if page == "Demo":
 elif page == "Console":
     st.title("Console: Detailed Analytics & Full Price History")
     
-    # Εμφάνιση του τύπου γραμμικής παρεμβολής σε LaTeX
     st.latex(
         r"f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}}"
     )
@@ -233,7 +248,8 @@ elif page == "Console":
         - **Scheduled Calculation Time (t):** {scheduled_time.strftime("%H:%M:%S")}
         - **Elapsed Time:** {elapsed_time:.8f} seconds
         - **Total Duration:** {total_duration:.8f} seconds
-        """)
+        """
+    )
     
     # Δημιουργία πίνακα ιστορικού τιμών (βήμα: UPDATE_INTERVAL)
     schedule = []
