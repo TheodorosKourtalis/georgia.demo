@@ -323,13 +323,23 @@ elif page == "Console":
 # ---------------------
 # Cart Page: Display the items in the cart nicely
 # ---------------------
+# ---------------------
+# Cart Page: Nice Looking Cart
+# ---------------------
 elif page == "Cart":
     st.title("Your Shopping Cart")
     if st.session_state.cart:
         st.markdown("### Items in your Cart:")
-        cart_df = pd.DataFrame(st.session_state.cart)
+        # Επαναυπολογισμός της τρέχουσας τιμής για κάθε προϊόν στο καλάθι
+        updated_cart = []
+        for item in st.session_state.cart:
+            updated_item = item.copy()
+            updated_item["current_price"] = calculate_price(item, get_global_scheduled_time())
+            updated_cart.append(updated_item)
+        cart_df = pd.DataFrame(updated_cart)
         st.dataframe(cart_df, use_container_width=True)
-        total = sum(item["start_price"] for item in st.session_state.cart)
+        total = sum(item["current_price"] for item in updated_cart)
         st.markdown(f"**Total:** €{total:.2f}")
+        st.markdown("Thank you for shopping with us!")
     else:
         st.info("Your cart is empty.")
