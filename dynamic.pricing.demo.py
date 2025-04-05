@@ -33,12 +33,13 @@ st.markdown(
     }
     /* Product card styling */
     .product-card {
-        background-color: #ffffff;
-        padding: 1rem;
-        margin: 0.5rem;
-        border-radius: 10px;
-        box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.15);
-        text-align: center;
+    background-color: #ffffff;
+    padding: 0rem;
+    margin: 0rem;
+    border-radius: 10px;
+    box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.15);
+    text-align: center;
+    }
     }
     .product-card h3 {
         color: #33691E;
