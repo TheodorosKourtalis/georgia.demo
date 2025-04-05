@@ -3,11 +3,17 @@ import datetime
 import random
 import pandas as pd
 import pytz
+import threading
+import time
 
-# Set page configuration with a plant emoji favicon.
+# ---------------------
+# Page Configuration
+# ---------------------
 st.set_page_config(page_title="Eco Store", page_icon="🌱", layout="wide")
 
-# Inject custom CSS and JavaScript to preserve scroll position.
+# ---------------------
+# Custom CSS & JS (for styling and preserving scroll)
+# ---------------------
 st.markdown(
     """
     <style>
@@ -15,7 +21,7 @@ st.markdown(
     .stApp {
         background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
     }
-    /* Headers and paragraphs styling */
+    /* Headers & paragraphs */
     h1, h2, h3, h4, h5, h6, p {
         color: #2E7D32;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -29,7 +35,7 @@ st.markdown(
         box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.15);
         text-align: center;
     }
-    /* Product image styling without extra white headers */
+    /* Product image styling (no extra white margins) */
     .product-img {
         width: 100%;
         border-radius: 10px;
@@ -53,35 +59,31 @@ st.markdown(
         color: #2E7D32;
         margin-bottom: 1rem;
     }
-    /* Reduce margins for headings inside product cards */
+    /* Reduce margins in headings inside product cards */
     .product-card h3, .product-card h4 {
         margin-top: 0;
         margin-bottom: 0.5rem;
     }
     </style>
-    <script>
-    // Preserve scroll position using sessionStorage.
-    window.addEventListener('load', function() {
-      if (window.sessionStorage.getItem("scrollPosition")) {
-          window.scrollTo(0, window.sessionStorage.getItem("scrollPosition"));
-      }
-    });
-    window.addEventListener("scroll", function() {
-      window.sessionStorage.setItem("scrollPosition", window.scrollY);
-    });
-    </script>
     """,
     unsafe_allow_html=True
 )
 
-# Use st.experimental_autorefresh for auto-refreshing every 5 seconds.
-# This re-runs the script without a full page reload.
-st.experimental_autorefresh(interval=5000, limit=None, key="autorefresh")
+# ---------------------
+# Auto-Refresh using a background thread
+# ---------------------
+UPDATE_INTERVAL = 5  # seconds
 
-# Update interval (seconds)
-UPDATE_INTERVAL = 5
+if 'auto_rerun_started' not in st.session_state:
+    st.session_state.auto_rerun_started = True
+    def auto_rerun():
+        time.sleep(UPDATE_INTERVAL)
+        st.experimental_rerun()
+    threading.Thread(target=auto_rerun, daemon=True).start()
 
-# --- Global Product Data (cached) ---
+# ---------------------
+# Global Functions & Data
+# ---------------------
 @st.cache_resource
 def get_products():
     return [
@@ -109,7 +111,7 @@ def get_products():
 
 products = get_products()
 
-# --- Image URLs (raw links from GitHub) ---
+# Image URLs from GitHub (use raw links)
 image_links = {
     "Eco Backpack": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/eco.bacpac-min.png",
     "Reusable Water Bottle": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/water.bottle-min.png",
@@ -117,11 +119,10 @@ image_links = {
     "Eco Sunglasses": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/trannos.west.png"
 }
 
-# --- Pricing Functions ---
 def get_cycle(current_dt):
     """
     Ορίζει τον ενεργό κύκλο τιμολόγησης.
-    Ο κύκλος ξεκινάει στις 05:00 (Europe/Athens) και διαρκεί 22 ώρες.
+    Ξεκινάει στις 05:00 (Europe/Athens) και διαρκεί 22 ώρες.
     Αν η τρέχουσα ώρα είναι πριν τις 05:00, ο κύκλος ξεκινάει χθες στις 05:00.
     """
     tz = pytz.timezone("Europe/Athens")
@@ -137,7 +138,7 @@ def get_cycle(current_dt):
 
 def get_current_scheduled_time(current_dt):
     """
-    Στρογγυλοποιεί το χρόνο που έχει περάσει από την έναρξη του κύκλου στο πλησιέστερο UPDATE_INTERVAL.
+    Στρογγυλοποιεί το χρόνο από την έναρξη του κύκλου στο πλησιέστερο UPDATE_INTERVAL.
     Δηλαδή, ορίζει έναν κοινό χρόνο υπολογισμού για όλους τους χρήστες.
     """
     cycle_start, _ = get_cycle(current_dt)
@@ -171,17 +172,21 @@ def calculate_price(product, scheduled_time):
     price = product["start_price"] + (product["end_price"] - product["start_price"]) * fraction
     return price
 
-# --- Sidebar: Επιλογή σελίδας (Demo και Console) ---
+# ---------------------
+# Sidebar: Page Selection (Demo & Console)
+# ---------------------
 page = st.sidebar.selectbox("Select Page", options=["Demo", "Console"])
 tz = pytz.timezone("Europe/Athens")
+now = datetime.datetime.now(tz)
+scheduled_time = get_global_scheduled_time()
 
+# ---------------------
+# Demo Page: Real Store
+# ---------------------
 if page == "Demo":
     st.title("Welcome to Eco Store")
     
-    now = datetime.datetime.now(tz)
-    scheduled_time = get_global_scheduled_time()
-    
-    # Εμφάνιση πληροφοριών ώρας
+    # Time info display
     st.markdown(
         f"""
         <div class="time-info">
@@ -191,31 +196,30 @@ if page == "Demo":
         """, unsafe_allow_html=True
     )
     st.markdown("<hr>", unsafe_allow_html=True)
-    
     st.header("Featured Products")
     
-    # Διάταξη προϊόντων σε 2 στήλες
+    # Arrange products in 2 columns
     cols = st.columns(2)
     for idx, product in enumerate(products):
         with cols[idx % 2]:
             st.markdown('<div class="product-card">', unsafe_allow_html=True)
-            
-            # Εμφάνιση εικόνας μέσω HTML ώστε να μην εμφανίζονται white headers
+            # Use HTML <img> tag for product image to avoid extra white headers
             image_url = image_links.get(product["name"], "https://via.placeholder.com/300x200.png")
             st.markdown(f'<img src="{image_url}" class="product-img">', unsafe_allow_html=True)
-            
             st.markdown(f"<h3>{product['name']}</h3>", unsafe_allow_html=True)
             price = calculate_price(product, scheduled_time)
             st.markdown(f"<h4>Sale Price: €{price:.4f}</h4>", unsafe_allow_html=True)
             st.write("High-quality, sustainable, and ethically produced.")
             
-            # Δημιουργία μοναδικού key για το κουμπί "Buy Now"
+            # Create a unique key for the button by including the scheduled time.
             button_key = f"buy_{product['name']}_{idx}_{scheduled_time.strftime('%H%M%S')}"
             if st.button("Buy Now", key=button_key):
                 st.success(f"Thank you for purchasing the {product['name']}!")
-                # Αν το προϊόν είναι "Eco Sunglasses", παίζει ο ήχος MP3
+                # If the product is Eco Sunglasses, play the MP3 sound.
                 if product["name"] == "Eco Sunglasses":
-                    mp3_url = "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/TRANNOS%20Feat%20ATC%20Taff%20-%20MAURO%20GYALI%20(Official%20Music%20Video)%20-%20Trapsion%20Entertainment%20(youtube)%20(mp3cut.net).mp3"
+                    mp3_url = ("https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/"
+                               "TRANNOS%20Feat%20ATC%20Taff%20-%20MAURO%20GYALI%20(Official%20Music%20Video)%20-"
+                               "Trapsion%20Entertainment%20(youtube)%20(mp3cut.net).mp3")
                     st.markdown(
                         f"""
                         <audio autoplay>
@@ -226,6 +230,9 @@ if page == "Demo":
                     )
             st.markdown("</div>", unsafe_allow_html=True)
 
+# ---------------------
+# Console Page: Detailed Analytics & Price History
+# ---------------------
 elif page == "Console":
     st.title("Console: Detailed Analytics & Full Price History")
     
@@ -233,10 +240,8 @@ elif page == "Console":
         r"f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}}"
     )
     
-    now = datetime.datetime.now(tz)
     cycle_start, cycle_end = get_cycle(now)
     total_duration = (cycle_end - cycle_start).total_seconds()
-    scheduled_time = get_global_scheduled_time()
     elapsed_time = (scheduled_time - cycle_start).total_seconds()
     
     st.markdown(
@@ -251,7 +256,7 @@ elif page == "Console":
         """
     )
     
-    # Δημιουργία πίνακα ιστορικού τιμών (βήμα UPDATE_INTERVAL)
+    # Build a full price history table (step = UPDATE_INTERVAL)
     schedule = []
     current_time = cycle_start
     while current_time <= scheduled_time:
