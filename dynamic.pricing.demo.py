@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Apr  5 03:40:51 2025
+
+@author: thodoreskourtales
+"""
+
 import streamlit as st
 import datetime
 import random
@@ -8,9 +16,9 @@ import time
 # Set page configuration with a plant emoji favicon.
 st.set_page_config(page_title="Eco Store", page_icon="🌱", layout="wide")
 
-# Initialize session state for the cart if not already present.
+# Αρχικοποίηση session_state για το cart, αν δεν υπάρχει ήδη.
 if "cart" not in st.session_state:
-    st.session_state.cart = []
+    st.session_state.cart = []  # λίστα προϊόντων στο καλάθι
 
 # Inject custom CSS for a modern, eco-friendly look and for the floating cart icon.
 st.markdown(
@@ -21,22 +29,30 @@ st.markdown(
         background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
     }
     /* Header styling */
-    h1, h2, h3, h4, h5, h6, p {
+    h1 {
         color: #2E7D32;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        text-align: center;
+        padding-top: 1rem;
     }
-    /* Product card styling (smaller boxes) */
+    /* Product card styling */
     .product-card {
         background-color: #ffffff;
-        padding: 0.5rem;
-        margin: 0rem;
+        padding: 0.5rem; /* μειωμένο padding */
+        margin: 0rem;    /* μειωμένο margin */
         border-radius: 10px;
         box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.15);
         text-align: center;
     }
-    .product-card h3, .product-card h4 {
-        margin: 0;
-        padding: 0.2rem 0;
+    .product-card h3 {
+        color: #33691E;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin-top: 0;
+        margin-bottom: 0.2rem;
+    }
+    .product-card p {
+        color: #555555;
+        font-size: 0.9rem;
     }
     /* Button styling */
     .stButton>button {
@@ -54,14 +70,14 @@ st.markdown(
         color: #2E7D32;
         margin-bottom: 1rem;
     }
-    /* Floating cart icon styling (top-right) */
+    /* Floating cart icon styling */
     .floating-cart {
         position: fixed;
-        top: 20px;
+        bottom: 20px;
         right: 20px;
         background-color: #66BB6A;
         color: #ffffff;
-        padding: 8px;
+        padding: 10px;
         border-radius: 50%;
         font-size: 24px;
         text-align: center;
@@ -116,7 +132,7 @@ def get_products():
 
 products = get_products()
 
-# Image URLs from GitHub (using raw links)
+# Λίστα με URLs εικόνων από GitHub (χρησιμοποιώντας raw links)
 image_links = {
     "Eco Backpack": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/eco.bacpac-min.png",
     "Reusable Water Bottle": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/water.bottle-min.png",
@@ -168,7 +184,7 @@ def calculate_price(product, scheduled_time):
     
     $$ f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}} $$
     
-    Η τιμή υπολογίζεται με βάση τον κοινό χρόνο.
+    Χρησιμοποιεί τον κοινό χρόνο υπολογισμού.
     """
     cycle_start, cycle_end = get_cycle(scheduled_time)
     total_duration = (cycle_end - cycle_start).total_seconds()
@@ -178,29 +194,21 @@ def calculate_price(product, scheduled_time):
     return price
 
 # ---------------------
-# Page Selection via Query Parameter or Sidebar
+# Sidebar Navigation (Demo, Console, Cart)
 # ---------------------
-query_params = st.experimental_get_query_params()
-if "page" in query_params:
-    page = query_params["page"][0]
-else:
-    page = st.sidebar.selectbox("Select Page", options=["Demo", "Console", "Cart"])
-
+page = st.sidebar.selectbox("Select Page", options=["Demo", "Console", "Cart"])
 tz = pytz.timezone("Europe/Athens")
 now = datetime.datetime.now(tz)
 scheduled_time = get_global_scheduled_time()
 
 # ---------------------
-# Floating Cart Icon (top-right) - using an anchor tag to redirect
-# ---------------------
+# Floating Cart Icon (μικρό εικονίδιο στο κάτω δεξί)
 cart_count = len(st.session_state.cart)
 cart_icon_html = f"""
-<a href="?page=Cart" style="text-decoration:none;">
-<div class="floating-cart">
+<div class="floating-cart" onclick="window.location.href='/?page=Cart'">
     🛒
     <div class="cart-counter">{cart_count}</div>
 </div>
-</a>
 """
 st.markdown(cart_icon_html, unsafe_allow_html=True)
 
@@ -226,7 +234,7 @@ if page == "Demo":
         with cols[idx % 2]:
             st.markdown('<div class="product-card">', unsafe_allow_html=True)
             
-            # Εμφάνιση εικόνας μέσω HTML (χωρίς white headers)
+            # Εμφάνιση εικόνας μέσω HTML για να μην υπάρχουν white headers.
             image_url = image_links.get(product["name"], "https://via.placeholder.com/300x200.png")
             st.markdown(f'<img src="{image_url}" class="product-img">', unsafe_allow_html=True)
             
@@ -237,7 +245,22 @@ if page == "Demo":
             
             button_key = f"buy_{product['name']}_{idx}_{scheduled_time.strftime('%H%M%S')}"
             if st.button("Buy Now", key=button_key):
+                st.success(f"Thank you for purchasing the {product['name']}!")
+                # Προσθήκη προϊόντος στο cart (append το προϊόν στο session_state.cart)
                 st.session_state.cart.append(product)
+                # Αν είναι τα Eco Sunglasses, αναπαραγέι ο ήχος MP3
+                if product["name"] == "Eco Sunglasses":
+                    mp3_url = ("https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/"
+                               "TRANNOS%20Feat%20ATC%20Taff%20-%20MAURO%20GYALI%20(Official%20Music%20Video)%20-"
+                               "Trapsion%20Entertainment%20(youtube)%20(mp3cut.net).mp3")
+                    st.markdown(
+                        f"""
+                        <audio autoplay>
+                          <source src="{mp3_url}" type="audio/mpeg">
+                          Your browser does not support the audio element.
+                        </audio>
+                        """, unsafe_allow_html=True
+                    )
             st.markdown("</div>", unsafe_allow_html=True)
 
 # ---------------------
@@ -298,22 +321,15 @@ elif page == "Console":
     )
 
 # ---------------------
-# Cart Page: Nice Looking Cart
+# Cart Page: Display the items in the cart nicely
 # ---------------------
 elif page == "Cart":
     st.title("Your Shopping Cart")
     if st.session_state.cart:
         st.markdown("### Items in your Cart:")
-        # Επαναυπολογισμός της τρέχουσας τιμής για κάθε προϊόν στο καλάθι
-        updated_cart = []
-        for item in st.session_state.cart:
-            updated_item = item.copy()
-            updated_item["current_price"] = calculate_price(item, get_global_scheduled_time())
-            updated_cart.append(updated_item)
-        cart_df = pd.DataFrame(updated_cart)
+        cart_df = pd.DataFrame(st.session_state.cart)
         st.dataframe(cart_df, use_container_width=True)
-        total = sum(item["current_price"] for item in updated_cart)
+        total = sum(item["start_price"] for item in st.session_state.cart)
         st.markdown(f"**Total:** €{total:.2f}")
-        st.markdown("Thank you for shopping with us!")
     else:
         st.info("Your cart is empty.")
