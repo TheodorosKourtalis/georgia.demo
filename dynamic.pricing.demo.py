@@ -64,13 +64,39 @@ st.markdown(
         color: #2E7D32;
         margin-bottom: 1rem;
     }
+    /* Floating Cart Icon */
+    .cart-icon {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 100;
+    }
+    .cart-icon a {
+        text-decoration: none;
+        color: inherit;
+    }
+    .cart-icon .icon {
+        position: relative;
+        font-size: 2rem;
+    }
+    .cart-icon .badge {
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        background: red;
+        color: white;
+        border-radius: 50%;
+        padding: 2px 6px;
+        font-size: 0.8rem;
+    }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# Update interval (seconds)
-UPDATE_INTERVAL = 5
+# Initialize session state for cart if not already set.
+if 'cart_items' not in st.session_state:
+    st.session_state['cart_items'] = []
 
 # --- Global Product Data (cached) ---
 @st.cache_resource
@@ -107,6 +133,9 @@ image_links = {
     "Organic T-Shirt": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/organic.tshirt-min.png",
     "Eco Sunglasses": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/trannos.west.png"
 }
+
+# Update interval (seconds)
+UPDATE_INTERVAL = 5
 
 def get_cycle(current_dt):
     """
@@ -161,13 +190,53 @@ def calculate_price(product, scheduled_time):
     price = product["start_price"] + (product["end_price"] - product["start_price"]) * fraction
     return price
 
-# --- Sidebar Navigation για Demo & Console Σελίδες ---
-page = st.sidebar.selectbox("Select Page", options=["Demo", "Console"])
-tz = pytz.timezone("Europe/Athens")
+# Determine current page: if query parameter 'page' is set to 'Cart', use that; otherwise use the sidebar.
+query_params = st.experimental_get_query_params()
+if "page" in query_params and query_params["page"][0] == "Cart":
+    current_page = "Cart"
+else:
+    current_page = st.sidebar.selectbox("Select Page", options=["Demo", "Console"])
 
-if page == "Demo":
+# Function to render the floating cart icon.
+def render_cart_icon():
+    cart_count = len(st.session_state['cart_items'])
+    cart_icon_html = f"""
+    <div class="cart-icon">
+      <a href="/?page=Cart">
+        <div class="icon">
+          🛒
+          <span class="badge">{cart_count}</span>
+        </div>
+      </a>
+    </div>
+    """
+    st.markdown(cart_icon_html, unsafe_allow_html=True)
+
+# --- Page Rendering ---
+
+if current_page == "Cart":
+    st.title("Your Shopping Cart")
+    st.markdown("<hr>", unsafe_allow_html=True)
+    
+    if st.session_state['cart_items']:
+        st.subheader("Items in your cart:")
+        for i, item in enumerate(st.session_state['cart_items'], start=1):
+            st.markdown(f"**{i}. {item}**")
+    else:
+        st.write("Your cart is empty!")
+    
+    if st.button("Continue Shopping"):
+        # Reset the URL query parameter to return to Demo page.
+        st.experimental_set_query_params(page="Demo")
+        st.experimental_rerun()
+    
+    # Also show the floating cart icon (optional on Cart page)
+    render_cart_icon()
+
+elif current_page == "Demo":
     st.title("Welcome to Eco Store")
     store_placeholder = st.empty()
+    tz = pytz.timezone("Europe/Athens")
     
     while True:
         now = datetime.datetime.now(tz)
@@ -185,13 +254,13 @@ if page == "Demo":
             st.markdown("<hr>", unsafe_allow_html=True)
             
             st.header("Featured Products")
-            # Διάταξη προϊόντων σε 2 στήλες
+            # Display products in 2 columns
             cols = st.columns(2)
             for idx, product in enumerate(products):
                 with cols[idx % 2]:
                     st.markdown('<div class="product-card">', unsafe_allow_html=True)
                     
-                    # Εμφάνιση εικόνας από GitHub
+                    # Display product image
                     image_url = image_links.get(product["name"], "https://via.placeholder.com/300x200.png")
                     st.image(image_url, use_container_width=True)
                     
@@ -200,11 +269,12 @@ if page == "Demo":
                     st.markdown(f"<h4>Sale Price: €{price:.4f}</h4>", unsafe_allow_html=True)
                     st.write("High-quality, sustainable, and ethically produced.")
                     
-                    # Δημιουργία μοναδικού key για το κουμπί "Buy Now"
+                    # Unique key for each Buy Now button.
                     button_key = f"buy_{product['name']}_{idx}_{scheduled_time.strftime('%H%M%S')}"
                     if st.button("Buy Now", key=button_key):
                         st.success(f"Thank you for purchasing the {product['name']}!")
-                        # Αν είναι τα γυαλιά, παίζει ο ήχος
+                        st.session_state.cart_items.append(product['name'])
+                        # Special audio for Eco Sunglasses.
                         if product["name"] == "Eco Sunglasses":
                             mp3_url = "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/TRANNOS%20Feat%20ATC%20Taff%20-%20MAURO%20GYALI%20(Official%20Music%20Video)%20-%20Trapsion%20Entertainment%20(youtube)%20(mp3cut.net).mp3"
                             st.markdown(f"""
@@ -215,17 +285,22 @@ if page == "Demo":
                             """, unsafe_allow_html=True)
                     
                     st.markdown("</div>", unsafe_allow_html=True)
+            
+            # Render the floating cart icon in Demo view.
+            render_cart_icon()
         
         time.sleep(UPDATE_INTERVAL)
         store_placeholder.empty()
+        st.experimental_rerun()
 
-elif page == "Console":
+elif current_page == "Console":
     st.title("Console: Detailed Analytics & Full Price History")
     
     latex_placeholder = st.empty()
     details_placeholder = st.empty()
     table_placeholder = st.empty()
     download_placeholder = st.empty()
+    tz = pytz.timezone("Europe/Athens")
     
     while True:
         now = datetime.datetime.now(tz)
@@ -248,7 +323,7 @@ elif page == "Console":
         """
         details_placeholder.markdown(details)
         
-        # Δημιουργία πίνακα ιστορικού τιμών (βήμα UPDATE_INTERVAL)
+        # Create a table with price history (step = UPDATE_INTERVAL)
         schedule = []
         current_time = cycle_start
         while current_time <= scheduled_time:
@@ -280,8 +355,12 @@ elif page == "Console":
             key=f"download_{int(time.time())}"
         )
         
+        # Render the floating cart icon in Console view.
+        render_cart_icon()
+        
         time.sleep(UPDATE_INTERVAL)
         latex_placeholder.empty()
         details_placeholder.empty()
         table_placeholder.empty()
         download_placeholder.empty()
+        st.experimental_rerun()
