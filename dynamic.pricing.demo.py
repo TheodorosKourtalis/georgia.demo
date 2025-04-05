@@ -134,7 +134,7 @@ image_links = {
     "Eco Sunglasses": "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/trannos.west.png"
 }
 
-# Update interval (seconds)
+# Update interval in seconds
 UPDATE_INTERVAL = 5
 
 def get_cycle(current_dt):
@@ -190,6 +190,10 @@ def calculate_price(product, scheduled_time):
     price = product["start_price"] + (product["end_price"] - product["start_price"]) * fraction
     return price
 
+# --- Auto-refresh setup ---
+# This auto-refreshes the page every UPDATE_INTERVAL seconds.
+st.experimental_autorefresh(interval=UPDATE_INTERVAL * 1000, limit=0, key="autorefresh")
+
 # Determine current page: if query parameter 'page' is set to 'Cart', use that; otherwise use the sidebar.
 query_params = st.query_params
 if "page" in query_params and query_params["page"][0] == "Cart":
@@ -235,84 +239,69 @@ if current_page == "Cart":
 
 elif current_page == "Demo":
     st.title("Welcome to Eco Store")
-    store_placeholder = st.empty()
     tz = pytz.timezone("Europe/Athens")
+    now = datetime.datetime.now(tz)
+    scheduled_time = get_global_scheduled_time()
     
-    while True:
-        now = datetime.datetime.now(tz)
-        scheduled_time = get_global_scheduled_time()
-        
-        with store_placeholder.container():
-            st.markdown(
-                f"""
-                <div class="time-info">
-                    <strong>Current Greek Time:</strong> {now.strftime('%H:%M:%S')}<br>
-                    <strong>Sale Price Calculation Time:</strong> {scheduled_time.strftime('%H:%M:%S')}
-                </div>
-                """, unsafe_allow_html=True
-            )
-            st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown(
+        f"""
+        <div class="time-info">
+            <strong>Current Greek Time:</strong> {now.strftime('%H:%M:%S')}<br>
+            <strong>Sale Price Calculation Time:</strong> {scheduled_time.strftime('%H:%M:%S')}
+        </div>
+        """, unsafe_allow_html=True
+    )
+    st.markdown("<hr>", unsafe_allow_html=True)
+    
+    st.header("Featured Products")
+    # Display products in 2 columns
+    cols = st.columns(2)
+    for idx, product in enumerate(products):
+        with cols[idx % 2]:
+            st.markdown('<div class="product-card">', unsafe_allow_html=True)
             
-            st.header("Featured Products")
-            # Display products in 2 columns
-            cols = st.columns(2)
-            for idx, product in enumerate(products):
-                with cols[idx % 2]:
-                    st.markdown('<div class="product-card">', unsafe_allow_html=True)
-                    
-                    # Display product image
-                    image_url = image_links.get(product["name"], "https://via.placeholder.com/300x200.png")
-                    st.image(image_url, use_container_width=True)
-                    
-                    st.markdown(f"<h3>{product['name']}</h3>", unsafe_allow_html=True)
-                    price = calculate_price(product, scheduled_time)
-                    st.markdown(f"<h4>Sale Price: €{price:.4f}</h4>", unsafe_allow_html=True)
-                    st.write("High-quality, sustainable, and ethically produced.")
-                    
-                    # Unique key for each Buy Now button.
-                    button_key = f"buy_{product['name']}_{idx}_{scheduled_time.strftime('%H%M%S')}"
-                    if st.button("Buy Now", key=button_key):
-                        st.success(f"Thank you for purchasing the {product['name']}!")
-                        st.session_state.cart_items.append(product['name'])
-                        # Special audio for Eco Sunglasses.
-                        if product["name"] == "Eco Sunglasses":
-                            mp3_url = "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/TRANNOS%20Feat%20ATC%20Taff%20-%20MAURO%20GYALI%20(Official%20Music%20Video)%20-%20Trapsion%20Entertainment%20(youtube)%20(mp3cut.net).mp3"
-                            st.markdown(f"""
-                            <audio autoplay>
-                              <source src="{mp3_url}" type="audio/mpeg">
-                              Your browser does not support the audio element.
-                            </audio>
-                            """, unsafe_allow_html=True)
-                    
-                    st.markdown("</div>", unsafe_allow_html=True)
+            # Display product image
+            image_url = image_links.get(product["name"], "https://via.placeholder.com/300x200.png")
+            st.image(image_url, use_container_width=True)
             
-            # Render the floating cart icon in Demo view.
-            render_cart_icon()
-        
-        time.sleep(UPDATE_INTERVAL)
-        store_placeholder.empty()
-        st.rerun()
+            st.markdown(f"<h3>{product['name']}</h3>", unsafe_allow_html=True)
+            price = calculate_price(product, scheduled_time)
+            st.markdown(f"<h4>Sale Price: €{price:.4f}</h4>", unsafe_allow_html=True)
+            st.write("High-quality, sustainable, and ethically produced.")
+            
+            # Unique key for each Buy Now button.
+            button_key = f"buy_{product['name']}_{idx}_{scheduled_time.strftime('%H%M%S')}"
+            if st.button("Buy Now", key=button_key):
+                st.success(f"Thank you for purchasing the {product['name']}!")
+                st.session_state.cart_items.append(product['name'])
+                # Special audio for Eco Sunglasses.
+                if product["name"] == "Eco Sunglasses":
+                    mp3_url = "https://raw.githubusercontent.com/TheodorosKourtalis/georgia.demo/main/TRANNOS%20Feat%20ATC%20Taff%20-%20MAURO%20GYALI%20(Official%20Music%20Video)%20-%20Trapsion%20Entertainment%20(youtube)%20(mp3cut.net).mp3"
+                    st.markdown(f"""
+                    <audio autoplay>
+                      <source src="{mp3_url}" type="audio/mpeg">
+                      Your browser does not support the audio element.
+                    </audio>
+                    """, unsafe_allow_html=True)
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Render the floating cart icon in Demo view.
+    render_cart_icon()
 
 elif current_page == "Console":
     st.title("Console: Detailed Analytics & Full Price History")
-    
-    latex_placeholder = st.empty()
-    details_placeholder = st.empty()
-    table_placeholder = st.empty()
-    download_placeholder = st.empty()
     tz = pytz.timezone("Europe/Athens")
+    now = datetime.datetime.now(tz)
+    cycle_start, cycle_end = get_cycle(now)
+    total_duration = (cycle_end - cycle_start).total_seconds()
+    scheduled_time = get_global_scheduled_time()
+    elapsed_time = (scheduled_time - cycle_start).total_seconds()
     
-    while True:
-        now = datetime.datetime.now(tz)
-        cycle_start, cycle_end = get_cycle(now)
-        total_duration = (cycle_end - cycle_start).total_seconds()
-        scheduled_time = get_global_scheduled_time()
-        elapsed_time = (scheduled_time - cycle_start).total_seconds()
-        
-        latex_placeholder.latex(
-            r"f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}}"
-        )
-        details = f"""
+    st.latex(
+        r"f(t) = \text{start\_price} + (\text{end\_price} - \text{start\_price}) \times \frac{t - t_{\text{start}}}{t_{\text{end}} - t_{\text{start}}}"
+    )
+    details = f"""
 **Cycle Details:**
 
 - **Cycle Start (tₛ):** {cycle_start.strftime("%H:%M:%S")}
@@ -320,47 +309,40 @@ elif current_page == "Console":
 - **Scheduled Calculation Time (t):** {scheduled_time.strftime("%H:%M:%S")}
 - **Elapsed Time:** {elapsed_time:.8f} seconds
 - **Total Duration:** {total_duration:.8f} seconds
-        """
-        details_placeholder.markdown(details)
-        
-        # Create a table with price history (step = UPDATE_INTERVAL)
-        schedule = []
-        current_time = cycle_start
-        while current_time <= scheduled_time:
-            row = {"Time": current_time.strftime("%H:%M:%S")}
-            for product in products:
-                delta = (current_time - cycle_start).total_seconds()
-                fraction = delta / total_duration
-                price = product["start_price"] + (product["end_price"] - product["start_price"]) * fraction
-                row[product["name"]] = f"{price:.4f} €"
-            schedule.append(row)
-            current_time += datetime.timedelta(seconds=UPDATE_INTERVAL)
-        
-        df = pd.DataFrame(schedule)
-        if not df.empty:
-            if len(df) > 100:
-                table_placeholder.markdown("### First 100 Entries")
-                table_placeholder.dataframe(df.head(100), use_container_width=True)
-                table_placeholder.markdown("### Last 100 Entries")
-                table_placeholder.dataframe(df.tail(100), use_container_width=True)
-            else:
-                table_placeholder.dataframe(df, use_container_width=True)
-        
-        csv = df.to_csv(index=False).encode('utf-8')
-        download_placeholder.download_button(
-            label="Download Full Price History",
-            data=csv,
-            file_name="price_history.csv",
-            mime="text/csv",
-            key=f"download_{int(time.time())}"
-        )
-        
-        # Render the floating cart icon in Console view.
-        render_cart_icon()
-        
-        time.sleep(UPDATE_INTERVAL)
-        latex_placeholder.empty()
-        details_placeholder.empty()
-        table_placeholder.empty()
-        download_placeholder.empty()
-        st.rerun()
+    """
+    st.markdown(details)
+    
+    # Create a table with price history (step = UPDATE_INTERVAL)
+    schedule = []
+    current_time = cycle_start
+    while current_time <= scheduled_time:
+        row = {"Time": current_time.strftime("%H:%M:%S")}
+        for product in products:
+            delta = (current_time - cycle_start).total_seconds()
+            fraction = delta / total_duration
+            price = product["start_price"] + (product["end_price"] - product["start_price"]) * fraction
+            row[product["name"]] = f"{price:.4f} €"
+        schedule.append(row)
+        current_time += datetime.timedelta(seconds=UPDATE_INTERVAL)
+    
+    df = pd.DataFrame(schedule)
+    if not df.empty:
+        if len(df) > 100:
+            st.markdown("### First 100 Entries")
+            st.dataframe(df.head(100), use_container_width=True)
+            st.markdown("### Last 100 Entries")
+            st.dataframe(df.tail(100), use_container_width=True)
+        else:
+            st.dataframe(df, use_container_width=True)
+    
+    csv = df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="Download Full Price History",
+        data=csv,
+        file_name="price_history.csv",
+        mime="text/csv",
+        key=f"download_{int(time.time())}"
+    )
+    
+    # Render the floating cart icon in Console view.
+    render_cart_icon()
